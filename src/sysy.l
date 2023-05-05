@@ -18,7 +18,7 @@ using namespace std;
 /* 空白符和注释 */
 WhiteSpace    [ \t\n\r]*
 LineComment   "//".*
-BlockComment  "/*"(.| |\t|\n|\r)*?"*/"
+BlockComment  "/*"([^*]*|\*+[^/])*"*/"
 
 /* 标识符 */
 Identifier    [a-zA-Z_][a-zA-Z0-9_]*
