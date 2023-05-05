@@ -95,10 +95,10 @@ Number
 void yyerror(unique_ptr<BaseAST> &ast, const char *s) {
   extern int yylineno;
   extern char *yytext;
-  int len=strlen(yytext);
+  int len = strlen(yytext);
   int i;
-  char buf[512]={0};
-  for (i=0;i<len;++i)
-    sprintf(buf,"%s%d ",buf,yytext[i]);
+  char buf[512] = {0};
+  for (i=0; i<len; ++i)
+    sprintf(buf, "%s%d ", buf, yytext[i]);
   fprintf(stderr, "ERROR: %s at symbol '%s' on line %d\n", s, buf, yylineno);
 }
