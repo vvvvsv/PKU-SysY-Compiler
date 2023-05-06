@@ -48,9 +48,20 @@ void BlockAST::KoopaIR() const {
 }
 
 void StmtAST::Dump() const {
-  std::cout << "StmtAST { "<<number<<" }";
+  std::cout << "StmtAST { ";
+  number->Dump();
+  std::cout << " }";
 }
 
 void StmtAST::KoopaIR() const {
-  std::cout << "ret " << number;
+  std::cout << "ret ";
+  number->KoopaIR();
+}
+
+void NumberAST::Dump() const {
+  std::cout << "Number { " << int_const << " }";
+}
+
+void NumberAST::KoopaIR() const {
+  std::cout << int_const;
 }

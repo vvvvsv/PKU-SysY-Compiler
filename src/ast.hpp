@@ -43,7 +43,14 @@ class BlockAST : public BaseAST {
 
 class StmtAST : public BaseAST {
  public:
-  std::int32_t number;
+  std::unique_ptr<BaseAST> number;
+  void Dump() const override;
+  void KoopaIR() const override;
+};
+
+class NumberAST : public BaseAST {
+ public:
+  std::int32_t int_const;
   void Dump() const override;
   void KoopaIR() const override;
 };
