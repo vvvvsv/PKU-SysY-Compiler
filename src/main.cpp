@@ -39,7 +39,8 @@ int main(int argc, const char *argv[]) {
   // 先把 KoopaIR 输出到 ss 里
   stringstream ss;
   streambuf *oldcoutbuf = cout.rdbuf(ss.rdbuf());
-  ast->Dump();
+  // cout.rdbuf(oldcoutbuf);
+  ast->KoopaIR();
 
   if(string(mode)=="-koopa")
   {

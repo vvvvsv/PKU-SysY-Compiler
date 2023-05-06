@@ -28,6 +28,7 @@ using namespace std;
   std::string *str_val;
   int int_val;
   BaseAST *ast_val;
+  char char_val;
 }
 
 // lexer 返回的所有 token 种类的声明
@@ -36,7 +37,8 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp Number UnaryExp UnaryOp
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp Number UnaryExp
+%type <char_val> UnaryOp
 
 %%
 
@@ -116,34 +118,27 @@ UnaryExp
   : PrimaryExp {
     auto ast=new UnaryExpAST();
     ast->type = 1;
-    ast->primaryexp1_unaryop2 = unique_ptr<BaseAST>($1);
-    ast->null1_unaryexp2 = nullptr;
+    ast->primaryexp1_unaryexp2 = unique_ptr<BaseAST>($1);
     $$=ast;
   }
   | UnaryOp UnaryExp {
     auto ast=new UnaryExpAST();
     ast->type = 2;
-    ast->primaryexp1_unaryop2 = unique_ptr<BaseAST>($1);
-    ast->null1_unaryexp2 = unique_ptr<BaseAST>($2);
+    ast->unaryop = $1;
+    ast->primaryexp1_unaryexp2 = unique_ptr<BaseAST>($2);
     $$=ast;
   }
   ;
 
 UnaryOp
   : '+' {
-    auto ast = new UnaryOpAST();
-    ast->unaryop = '+';
-    $$ = ast;
+    $$ = '+';
   }
   | '-' {
-    auto ast = new UnaryOpAST();
-    ast->unaryop = '-';
-    $$ = ast;
+    $$ = '-';
   }
   | '!' {
-    auto ast = new UnaryOpAST();
-    ast->unaryop = '!';
-    $$ = ast;
+    $$ = '!';
   }
   ;
 
