@@ -49,13 +49,31 @@ void BlockAST::KoopaIR() const {
 
 void StmtAST::Dump() const {
   std::cout << "StmtAST { ";
-  number->Dump();
+  exp->Dump();
   std::cout << " }";
 }
 
 void StmtAST::KoopaIR() const {
   std::cout << "ret ";
-  number->KoopaIR();
+  exp->KoopaIR();
+}
+
+void ExpAST::Dump() const {
+  std::cout << "ExpAST { ";
+  unaryexp->Dump();
+  std::cout << " }";
+}
+
+void ExpAST::KoopaIR() const {
+}
+
+void PrimaryExpAST::Dump() const {
+  std::cout << "PrimaryExpAST { ";
+  exp1_number2->Dump();
+  std::cout << " }";
+}
+
+void PrimaryExpAST::KoopaIR() const {
 }
 
 void NumberAST::Dump() const {
@@ -64,4 +82,22 @@ void NumberAST::Dump() const {
 
 void NumberAST::KoopaIR() const {
   std::cout << int_const;
+}
+
+void UnaryExpAST::Dump() const {
+  std::cout << "UnaryExpAST { ";
+  primaryexp1_unaryop2->Dump();
+  if(type==2)
+    null1_unaryexp2->Dump();
+  std::cout << " }";
+}
+
+void UnaryExpAST::KoopaIR() const {
+}
+
+void UnaryOpAST::Dump() const {
+  std::cout << "UnaryOpAST { "<< unaryop << " }";
+}
+
+void UnaryOpAST::KoopaIR() const {
 }
