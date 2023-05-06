@@ -50,10 +50,10 @@ class StmtAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// Exp ::= UnaryExp;
+// Exp ::= AddExp;
 class ExpAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> unaryexp;
+  std::unique_ptr<BaseAST> addexp;
   void KoopaIR() const override;
 };
 
@@ -67,10 +67,33 @@ class PrimaryExpAST : public BaseAST {
 };
 
 // UnaryExp ::= PrimaryExp | UnaryOp UnaryExp;
+// UnaryOp ::= "+" | "-" | "!"
 class UnaryExpAST : public BaseAST {
  public:
   int type;
   char unaryop;
   std::unique_ptr<BaseAST> primaryexp1_unaryexp2;
+  void KoopaIR() const override;
+};
+
+// MulExp ::= UnaryExp | MulExp MulOp UnaryExp;
+// MulOp ::= "*" | "/" | "%"
+class MulExpAST : public BaseAST {
+ public:
+  int type;
+  char mulop;
+  std::unique_ptr<BaseAST> mulexp;
+  std::unique_ptr<BaseAST> unaryexp;
+  void KoopaIR() const override;
+};
+
+// AddExp ::= MulExp | AddExp AddOp MulExp;
+// AddOp ::= "+" | "-"
+class AddExpAST : public BaseAST {
+ public:
+  int type;
+  char addop;
+  std::unique_ptr<BaseAST> addexp;
+  std::unique_ptr<BaseAST> mulexp;
   void KoopaIR() const override;
 };

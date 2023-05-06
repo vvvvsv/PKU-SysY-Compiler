@@ -30,7 +30,7 @@ void StmtAST::KoopaIR() const {
 }
 
 void ExpAST::KoopaIR() const {
-  unaryexp->KoopaIR();
+  addexp->KoopaIR();
 }
 
 void PrimaryExpAST::KoopaIR() const {
@@ -58,6 +58,56 @@ void UnaryExpAST::KoopaIR() const {
     else if(unaryop=='!') {
       std::cout << "  %" << koopacnt << " = eq 0, %";
       std::cout << koopacnt-1 <<std::endl;
+      koopacnt++;
+    }
+  }
+}
+
+void MulExpAST::KoopaIR() const {
+  if(type==1) {
+    unaryexp->KoopaIR();
+  }
+  else if(type==2) {
+    mulexp->KoopaIR();
+    int left = koopacnt-1;
+    unaryexp->KoopaIR();
+    int right = koopacnt-1;
+    if(mulop=='*') {
+      std::cout << "  %" << koopacnt << " = mul %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(mulop=='/') {
+      std::cout << "  %" << koopacnt << " = div %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(mulop=='%') {
+      std::cout << "  %" << koopacnt << " = mod %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+  }
+}
+
+
+void AddExpAST::KoopaIR() const {
+  if(type==1) {
+    mulexp->KoopaIR();
+  }
+  else if(type==2) {
+    addexp->KoopaIR();
+    int left = koopacnt-1;
+    mulexp->KoopaIR();
+    int right = koopacnt-1;
+    if(addop=='+') {
+      std::cout << "  %" << koopacnt << " = add %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(addop=='-') {
+      std::cout << "  %" << koopacnt << " = sub %";
+      std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
   }
