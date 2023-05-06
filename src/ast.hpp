@@ -10,10 +10,6 @@ class BaseAST {
   virtual void KoopaIR() const = 0;
 };
 
-// 对 ::= 右侧的每个规则都设计一种 AST, 在 parse 到对应规则时, 构造对应的 AST.
-// 例如 UnaryExpAST 中的 primaryexp1_unaryexp2 表示在 type 为 1 时为 PrimaryExp
-// 在 type 为 2 时 为 UnaryExp
-
 // CompUnit ::= FuncDef;
 class CompUnitAST : public BaseAST {
  public:
@@ -50,10 +46,10 @@ class StmtAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// Exp ::= AddExp;
+// Exp ::= LOrExp;
 class ExpAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> addexp;
+  std::unique_ptr<BaseAST> lorexp;
   void KoopaIR() const override;
 };
 
@@ -72,6 +68,8 @@ class UnaryExpAST : public BaseAST {
  public:
   int type;
   char unaryop;
+  // primaryexp1_unaryexp2 表示在 type 为 1 时为 PrimaryExp
+  // 在 type 为 2 时 为 UnaryExp
   std::unique_ptr<BaseAST> primaryexp1_unaryexp2;
   void KoopaIR() const override;
 };
@@ -95,5 +93,45 @@ class AddExpAST : public BaseAST {
   char addop;
   std::unique_ptr<BaseAST> addexp;
   std::unique_ptr<BaseAST> mulexp;
+  void KoopaIR() const override;
+};
+
+// RelExp ::= AddExp | RelExp RelOp AddExp;
+// RelOp ::= "<" | ">" | "<=" | ">="
+class RelExpAST : public BaseAST {
+ public:
+  int type;
+  std::string relop;
+  std::unique_ptr<BaseAST> relexp;
+  std::unique_ptr<BaseAST> addexp;
+  void KoopaIR() const override;
+};
+
+// EqExp ::= RelExp | EqExp EqOp RelExp;
+// EqOp ::= "==" | "!="
+class EqExpAST : public BaseAST {
+ public:
+  int type;
+  std::string eqop;
+  std::unique_ptr<BaseAST> eqexp;
+  std::unique_ptr<BaseAST> relexp;
+  void KoopaIR() const override;
+};
+
+// LAndExp ::= EqExp | LAndExp "&&" EqExp;
+class LAndExpAST : public BaseAST {
+ public:
+  int type;
+  std::unique_ptr<BaseAST> landexp;
+  std::unique_ptr<BaseAST> eqexp;
+  void KoopaIR() const override;
+};
+
+// LOrExp  ::= LAndExp | LOrExp "||" LAndExp;
+class LOrExpAST : public BaseAST {
+ public:
+  int type;
+  std::unique_ptr<BaseAST> lorexp;
+  std::unique_ptr<BaseAST> landexp;
   void KoopaIR() const override;
 };

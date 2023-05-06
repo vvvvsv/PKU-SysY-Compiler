@@ -33,12 +33,13 @@ using namespace std;
 
 // lexer 返回的所有 token 种类的声明
 %token INT RETURN
-%token <str_val> IDENT
+%token LAND LOR
+%token <str_val> IDENT RELOP EQOP
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp
-%type <ast_val> UnaryExp MulExp AddExp
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp
+%type <ast_val> MulExp AddExp RelExp EqExp LAndExp LOrExp
 %type <int_val> Number
 %type <char_val> UnaryOp MulOp AddOp
 
@@ -86,9 +87,9 @@ Stmt
   ;
 
 Exp
-  : AddExp {
+  : LOrExp {
     auto ast = new ExpAST();
-    ast->addexp = unique_ptr<BaseAST>($1);
+    ast->lorexp = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   ;
@@ -194,6 +195,72 @@ AddOp
   }
   | '-' {
     $$ = '-';
+  }
+  ;
+
+RelExp
+  : AddExp {
+    auto ast=new RelExpAST();
+    ast->type = 1;
+    ast->addexp = unique_ptr<BaseAST>($1);
+    $$=ast;
+  }
+  | RelExp RELOP AddExp {
+    auto ast=new RelExpAST();
+    ast->type = 2;
+    ast->relexp = unique_ptr<BaseAST>($1);
+    ast->relop = *unique_ptr<string>($2);
+    ast->addexp = unique_ptr<BaseAST>($3);
+    $$=ast;
+  }
+  ;
+
+EqExp
+  : RelExp {
+    auto ast=new EqExpAST();
+    ast->type = 1;
+    ast->relexp = unique_ptr<BaseAST>($1);
+    $$=ast;
+  }
+  | EqExp EQOP RelExp {
+    auto ast=new EqExpAST();
+    ast->type = 2;
+    ast->eqexp = unique_ptr<BaseAST>($1);
+    ast->eqop = *unique_ptr<string>($2);
+    ast->relexp = unique_ptr<BaseAST>($3);
+    $$=ast;
+  }
+  ;
+
+LAndExp
+  : EqExp {
+    auto ast=new LAndExpAST();
+    ast->type = 1;
+    ast->eqexp = unique_ptr<BaseAST>($1);
+    $$=ast;
+  }
+  | LAndExp LAND EqExp {
+    auto ast=new LAndExpAST();
+    ast->type = 2;
+    ast->landexp = unique_ptr<BaseAST>($1);
+    ast->eqexp = unique_ptr<BaseAST>($3);
+    $$=ast;
+  }
+  ;
+
+LOrExp
+  : LAndExp {
+    auto ast=new LOrExpAST();
+    ast->type = 1;
+    ast->landexp = unique_ptr<BaseAST>($1);
+    $$=ast;
+  }
+  | LOrExp LOR LAndExp {
+    auto ast=new LOrExpAST();
+    ast->type = 2;
+    ast->lorexp = unique_ptr<BaseAST>($1);
+    ast->landexp = unique_ptr<BaseAST>($3);
+    $$=ast;
   }
   ;
 

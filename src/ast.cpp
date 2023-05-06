@@ -30,7 +30,7 @@ void StmtAST::KoopaIR() const {
 }
 
 void ExpAST::KoopaIR() const {
-  addexp->KoopaIR();
+  lorexp->KoopaIR();
 }
 
 void PrimaryExpAST::KoopaIR() const {
@@ -90,7 +90,6 @@ void MulExpAST::KoopaIR() const {
   }
 }
 
-
 void AddExpAST::KoopaIR() const {
   if(type==1) {
     mulexp->KoopaIR();
@@ -110,5 +109,107 @@ void AddExpAST::KoopaIR() const {
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
+  }
+}
+
+void RelExpAST::KoopaIR() const {
+  if(type==1) {
+    addexp->KoopaIR();
+  }
+  else if(type==2) {
+    relexp->KoopaIR();
+    int left = koopacnt-1;
+    addexp->KoopaIR();
+    int right = koopacnt-1;
+    if(relop=="<") {
+      std::cout << "  %" << koopacnt << " = lt %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(relop==">") {
+      std::cout << "  %" << koopacnt << " = gt %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(relop=="<=") {
+      std::cout << "  %" << koopacnt << " = le %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(relop==">=") {
+      std::cout << "  %" << koopacnt << " = ge %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+  }
+}
+
+void EqExpAST::KoopaIR() const {
+  if(type==1) {
+    relexp->KoopaIR();
+  }
+  else if(type==2) {
+    eqexp->KoopaIR();
+    int left = koopacnt-1;
+    relexp->KoopaIR();
+    int right = koopacnt-1;
+    if(eqop=="==") {
+      std::cout << "  %" << koopacnt << " = eq %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+    else if(eqop=="!=") {
+      std::cout << "  %" << koopacnt << " = ne %";
+      std::cout << left << ", %" << right << std::endl;
+      koopacnt++;
+    }
+  }
+}
+
+void LAndExpAST::KoopaIR() const {
+  if(type==1) {
+    eqexp->KoopaIR();
+  }
+  else if(type==2) {
+    landexp->KoopaIR();
+    int left = koopacnt-1;
+    eqexp->KoopaIR();
+    int right = koopacnt-1;
+    // A&&B <==> (A!=0)&(B!=0)
+    std::cout << "  %" << koopacnt << " = ne %";
+    std::cout << left << ", 0" << std::endl;
+    left = koopacnt;
+    koopacnt++;
+    std::cout << "  %" << koopacnt << " = ne %";
+    std::cout << right << ", 0" << std::endl;
+    right = koopacnt;
+    koopacnt++;
+    std::cout << "  %" << koopacnt << " = and %";
+    std::cout << left << ", %" << right << std::endl;
+    koopacnt++;
+  }
+}
+
+void LOrExpAST::KoopaIR() const {
+  if(type==1) {
+    landexp->KoopaIR();
+  }
+  else if(type==2) {
+    lorexp->KoopaIR();
+    int left = koopacnt-1;
+    landexp->KoopaIR();
+    int right = koopacnt-1;
+    // A||B <==> (A!=0)|(B!=0)
+    std::cout << "  %" << koopacnt << " = ne %";
+    std::cout << left << ", 0" << std::endl;
+    left = koopacnt;
+    koopacnt++;
+    std::cout << "  %" << koopacnt << " = ne %";
+    std::cout << right << ", 0" << std::endl;
+    right = koopacnt;
+    koopacnt++;
+    std::cout << "  %" << koopacnt << " = or %";
+    std::cout << left << ", %" << right << std::endl;
+    koopacnt++;
   }
 }

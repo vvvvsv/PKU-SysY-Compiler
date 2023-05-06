@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <iostream>
 
 // 因为 Flex 会用到 Bison 中关于 token 的定义
 // 所以需要 include Bison 生成的头文件
@@ -28,6 +29,10 @@ Decimal       [1-9][0-9]*
 Octal         0[0-7]*
 Hexadecimal   0[xX][0-9a-fA-F]+
 
+/* 比较运算符 */
+RelOp         [<>]=?
+EqOp          [!=]=
+
 %%
 
 {WhiteSpace}    { /* 忽略, 不做任何操作 */ }
@@ -36,6 +41,11 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 "int"           { return INT; }
 "return"        { return RETURN; }
+
+{RelOp}         { yylval.str_val = new string(yytext); return RELOP; }
+{EqOp}          { yylval.str_val = new string(yytext); return EQOP; }
+"&&"            { return LAND; }
+"||"            { return LOR; }
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
