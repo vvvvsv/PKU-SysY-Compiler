@@ -11,8 +11,8 @@ class BaseAST {
 };
 
 // 对 ::= 右侧的每个规则都设计一种 AST, 在 parse 到对应规则时, 构造对应的 AST.
-// 例如 PrimaryExpAST 中的 exp1_number2 表示在 type 为 1 时为 ExpAST
-// 在 type 为 2 时 为 NumberAST
+// 例如 UnaryExpAST 中的 primaryexp1_unaryexp2 表示在 type 为 1 时为 PrimaryExp
+// 在 type 为 2 时 为 UnaryExp
 
 // CompUnit ::= FuncDef;
 class CompUnitAST : public BaseAST {
@@ -61,14 +61,8 @@ class ExpAST : public BaseAST {
 class PrimaryExpAST : public BaseAST {
  public:
   int type;
-  std::unique_ptr<BaseAST> exp1_number2;
-  void KoopaIR() const override;
-};
-
-// Number ::= INT_CONST;
-class NumberAST : public BaseAST {
- public:
-  std::int32_t int_const;
+  std::unique_ptr<BaseAST> exp;
+  std::int32_t number;
   void KoopaIR() const override;
 };
 

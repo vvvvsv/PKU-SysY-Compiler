@@ -35,18 +35,13 @@ void ExpAST::KoopaIR() const {
 
 void PrimaryExpAST::KoopaIR() const {
   if(type==1) {
-    exp1_number2->KoopaIR();
+    exp->KoopaIR();
   }
   else if(type==2) {
     std::cout << "  %" << koopacnt << " = add 0, ";
+    std::cout<< number << std::endl;
     koopacnt++;
-    exp1_number2->KoopaIR();
-    std::cout << std::endl;
   }
-}
-
-void NumberAST::KoopaIR() const {
-  std::cout << int_const;
 }
 
 void UnaryExpAST::KoopaIR() const {

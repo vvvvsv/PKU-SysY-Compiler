@@ -37,7 +37,8 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp Number UnaryExp
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp
+%type <int_val> Number
 %type <char_val> UnaryOp
 
 %%
@@ -95,22 +96,20 @@ PrimaryExp
   : '(' Exp ')' {
     auto ast=new PrimaryExpAST();
     ast->type = 1;
-    ast->exp1_number2 = unique_ptr<BaseAST>($2);
+    ast->exp = unique_ptr<BaseAST>($2);
     $$=ast;
   }
   | Number {
     auto ast=new PrimaryExpAST();
     ast->type = 2;
-    ast->exp1_number2 = unique_ptr<BaseAST>($1);
+    ast->number = $1;
     $$=ast;
   }
   ;
 
 Number
   : INT_CONST {
-    auto ast = new NumberAST();
-    ast->int_const = $1;
-    $$ = ast;
+    $$ = $1;
   }
   ;
 
