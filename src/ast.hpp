@@ -1,10 +1,13 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <vector>
 
 // 所有 AST 的基类
 class BaseAST {
  public:
+  // 类中的type表示是第几个生成式, type=1表示最左侧第一个生成式, 依此类推.
+  // xxx1_yyy2 表示在 type 为 1 时为 xxx, 在 type 为 2 时为 yyy.
   virtual ~BaseAST() = default;
   // 输出 KoopaIR 到 stdout
   virtual void KoopaIR() const = 0;
@@ -14,6 +17,43 @@ class BaseAST {
 class CompUnitAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> func_def;
+  void KoopaIR() const override;
+};
+
+// Decl ::= ConstDecl;
+class DeclAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> const_decl;
+  void KoopaIR() const override;
+};
+
+// ConstDecl ::= "const" BType ConstDefList ";";
+// ConstDefList ::= ConstDef | ConstDefList "," ConstDef;
+class ConstDeclAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> b_type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_def_list;
+  void KoopaIR() const override;
+};
+
+// BType ::= "int";
+class BTypeAST : public BaseAST {
+ public:
+  void KoopaIR() const override;
+};
+
+// ConstDef ::= IDENT "=" ConstInitVal;
+class ConstDefAST : public BaseAST {
+ public:
+  std::string ident;
+  std::unique_ptr<BaseAST> const_init_val;
+  void KoopaIR() const override;
+};
+
+// ConstInitVal ::= ConstExp;
+class ConstInitValAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> const_exp;
   void KoopaIR() const override;
 };
 
@@ -32,10 +72,19 @@ class FuncTypeAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// Block ::= "{" Stmt "}";
+// Block ::= "{" BlockItemList "}";
+// BlockItemList ::=  | BlockItemList BlockItem;
 class BlockAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> stmt;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > block_item_list;
+  void KoopaIR() const override;
+};
+
+// BlockItem ::= Decl | Stmt;
+class BlockItemAST : public BaseAST {
+ public:
+  int type;
+  std::unique_ptr<BaseAST> decl1_stmt2;
   void KoopaIR() const override;
 };
 
@@ -53,11 +102,18 @@ class ExpAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// PrimaryExp ::= "(" Exp ")" | Number;
+// LVal ::= IDENT;
+class LValAST : public BaseAST {
+ public:
+  std::string ident;
+  void KoopaIR() const override;
+};
+
+// PrimaryExp ::= "(" Exp ")" | LVal | Number;
 class PrimaryExpAST : public BaseAST {
  public:
   int type;
-  std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<BaseAST> exp1_lval2;
   std::int32_t number;
   void KoopaIR() const override;
 };
@@ -68,8 +124,6 @@ class UnaryExpAST : public BaseAST {
  public:
   int type;
   char unaryop;
-  // primaryexp1_unaryexp2 表示在 type 为 1 时为 PrimaryExp
-  // 在 type 为 2 时 为 UnaryExp
   std::unique_ptr<BaseAST> primaryexp1_unaryexp2;
   void KoopaIR() const override;
 };
@@ -133,5 +187,12 @@ class LOrExpAST : public BaseAST {
   int type;
   std::unique_ptr<BaseAST> lorexp;
   std::unique_ptr<BaseAST> landexp;
+  void KoopaIR() const override;
+};
+
+// ConstExp ::= Exp;
+class ConstExpAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
 };

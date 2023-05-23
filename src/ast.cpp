@@ -7,6 +7,24 @@ void CompUnitAST::KoopaIR() const {
   func_def->KoopaIR();
 }
 
+void DeclAST::KoopaIR() const {
+  const_decl->KoopaIR();
+}
+
+void ConstDeclAST::KoopaIR() const {
+  b_type->KoopaIR();
+  for(auto& const_def: *const_def_list)
+    const_def->KoopaIR();
+}
+
+void BTypeAST::KoopaIR() const {
+  return;
+}
+
+void ConstDefAST::KoopaIR() const {
+  insertSym
+}
+
 void FuncDefAST::KoopaIR() const {
   std::cout << "fun @" << ident << "(): ";
   func_type->KoopaIR();
