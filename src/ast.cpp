@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cassert>
 #include "ast.hpp"
 
 static int koopacnt = 0;
@@ -7,22 +8,56 @@ void CompUnitAST::KoopaIR() const {
   func_def->KoopaIR();
 }
 
+int CompUnitAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void DeclAST::KoopaIR() const {
   const_decl->KoopaIR();
 }
 
+int DeclAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void ConstDeclAST::KoopaIR() const {
-  b_type->KoopaIR();
   for(auto& const_def: *const_def_list)
     const_def->KoopaIR();
 }
 
+int ConstDeclAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void BTypeAST::KoopaIR() const {
+  assert(0);
   return;
 }
 
+int BTypeAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void ConstDefAST::KoopaIR() const {
-  insertSym
+  insert_symbol(ident, SYM_TYPE_CONST, const_init_val->Calc());
+}
+
+int ConstDefAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
+void ConstInitValAST::KoopaIR() const {
+  assert(0);
+  return;
+}
+
+int ConstInitValAST::Calc() const {
+  return const_exp->Calc();
 }
 
 void FuncDefAST::KoopaIR() const {
@@ -33,13 +68,40 @@ void FuncDefAST::KoopaIR() const {
   std::cout << std::endl << "}" << std::endl;
 }
 
+int FuncDefAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void FuncTypeAST::KoopaIR() const {
   std::cout << "i32";
 }
 
+int FuncTypeAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void BlockAST::KoopaIR() const {
   std::cout << "%entry:" << std::endl;
-  stmt->KoopaIR();
+  for(auto& block_item: *block_item_list)
+  {
+    block_item->KoopaIR();
+  }
+}
+
+int BlockAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
+void BlockItemAST::KoopaIR() const {
+  decl1_stmt2->KoopaIR();
+}
+
+int BlockItemAST::Calc() const {
+  assert(0);
+  return 0;
 }
 
 void StmtAST::KoopaIR() const {
@@ -47,19 +109,69 @@ void StmtAST::KoopaIR() const {
   std::cout << "  ret %" << koopacnt-1;
 }
 
+int StmtAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 void ExpAST::KoopaIR() const {
   lorexp->KoopaIR();
 }
 
+int ExpAST::Calc() const {
+  return lorexp->Calc();
+}
+
+void LValAST::KoopaIR() const {
+  auto val = query_symbol(ident);
+  assert(val->type != SYM_TYPE_UND);
+
+  if(val->type == SYM_TYPE_CONST)
+  {
+    // 此处有优化空间
+    std::cout << "  %" << koopacnt << " = add 0, ";
+    std::cout<< val->value << std::endl;
+    koopacnt++;
+  }
+  else if(val->type == SYM_TYPE_VAR)
+  {
+    assert(0);
+  }
+  return;
+}
+
+int LValAST::Calc() const {
+  auto val = query_symbol(ident);
+  assert(val->type == SYM_TYPE_CONST);
+  return val->value;
+}
+
 void PrimaryExpAST::KoopaIR() const {
   if(type==1) {
-    exp->KoopaIR();
+    exp1_lval2->KoopaIR();
   }
   else if(type==2) {
+    exp1_lval2->KoopaIR();
+  }
+  else if(type==3) {
     std::cout << "  %" << koopacnt << " = add 0, ";
     std::cout<< number << std::endl;
     koopacnt++;
   }
+}
+
+int PrimaryExpAST::Calc() const {
+  if(type==1) {
+    return exp1_lval2->Calc();
+  }
+  else if(type==2) {
+    return exp1_lval2->Calc();
+  }
+  else if(type==3) {
+    return number;
+  }
+  assert(0);
+  return 0;
 }
 
 void UnaryExpAST::KoopaIR() const {
@@ -79,6 +191,26 @@ void UnaryExpAST::KoopaIR() const {
       koopacnt++;
     }
   }
+}
+
+int UnaryExpAST::Calc() const {
+  if(type==1) {
+    return primaryexp1_unaryexp2->Calc();
+  }
+  else if(type==2) {
+    int tmp = primaryexp1_unaryexp2->Calc();
+    if(unaryop=='+') {
+      return tmp;
+    }
+    else if(unaryop=='-') {
+      return -tmp;
+    }
+    else if(unaryop=='!') {
+      return !tmp;
+    }
+  }
+  assert(0);
+  return 0;
 }
 
 void MulExpAST::KoopaIR() const {
@@ -108,6 +240,27 @@ void MulExpAST::KoopaIR() const {
   }
 }
 
+int MulExpAST::Calc() const {
+  if(type==1) {
+    return unaryexp->Calc();
+  }
+  else if(type==2) {
+    int left = mulexp->Calc();
+    int right = unaryexp->Calc();
+    if(mulop=='*') {
+      return left * right;
+    }
+    else if(mulop=='/') {
+      return left / right;
+    }
+    else if(mulop=='%') {
+      return left % right;
+    }
+  }
+  assert(0);
+  return 0;
+}
+
 void AddExpAST::KoopaIR() const {
   if(type==1) {
     mulexp->KoopaIR();
@@ -128,6 +281,24 @@ void AddExpAST::KoopaIR() const {
       koopacnt++;
     }
   }
+}
+
+int AddExpAST::Calc() const {
+  if(type==1) {
+    return mulexp->Calc();
+  }
+  else if(type==2) {
+    int left = addexp->Calc();
+    int right = mulexp->Calc();
+    if(addop=='+') {
+      return left + right;
+    }
+    else if(addop=='-') {
+      return left - right;
+    }
+  }
+  assert(0);
+  return 0;
 }
 
 void RelExpAST::KoopaIR() const {
@@ -162,6 +333,30 @@ void RelExpAST::KoopaIR() const {
   }
 }
 
+int RelExpAST::Calc() const {
+  if(type==1) {
+    return addexp->Calc();
+  }
+  else if(type==2) {
+    int left = relexp->Calc();
+    int right = addexp->Calc();
+    if(relop=="<") {
+      return left < right;
+    }
+    else if(relop==">") {
+      return left > right;
+    }
+    else if(relop=="<=") {
+      return left <= right;
+    }
+    else if(relop==">=") {
+      return left >= right;
+    }
+  }
+  assert(0);
+  return 0;
+}
+
 void EqExpAST::KoopaIR() const {
   if(type==1) {
     relexp->KoopaIR();
@@ -182,6 +377,24 @@ void EqExpAST::KoopaIR() const {
       koopacnt++;
     }
   }
+}
+
+int EqExpAST::Calc() const {
+  if(type==1) {
+    return relexp->Calc();
+  }
+  else if(type==2) {
+    int left = eqexp->Calc();
+    int right = relexp->Calc();
+    if(eqop=="==") {
+      return left == right;
+    }
+    else if(eqop=="!=") {
+      return left != right;
+    }
+  }
+  assert(0);
+  return 0;
 }
 
 void LAndExpAST::KoopaIR() const {
@@ -208,6 +421,19 @@ void LAndExpAST::KoopaIR() const {
   }
 }
 
+int LAndExpAST::Calc() const {
+  if(type==1) {
+    return eqexp->Calc();
+  }
+  else if(type==2) {
+    int left = landexp->Calc();
+    int right = eqexp->Calc();
+    return left && right;
+  }
+  assert(0);
+  return 0;
+}
+
 void LOrExpAST::KoopaIR() const {
   if(type==1) {
     landexp->KoopaIR();
@@ -230,4 +456,26 @@ void LOrExpAST::KoopaIR() const {
     std::cout << left << ", %" << right << std::endl;
     koopacnt++;
   }
+}
+
+int LOrExpAST::Calc() const {
+  if(type==1) {
+    return landexp->Calc();
+  }
+  else if(type==2) {
+    int left = lorexp->Calc();
+    int right = landexp->Calc();
+    return left || right;
+  }
+  assert(0);
+  return 0;
+}
+
+void ConstExpAST::KoopaIR() const {
+  assert(0);
+  return;
+}
+
+int ConstExpAST::Calc() const {
+  return exp->Calc();
 }

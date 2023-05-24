@@ -30,7 +30,7 @@ using namespace std;
   int int_val;
   char char_val;
   BaseAST *ast_val;
-  vector<unique_ptr<BaseAST> > *vec_val;
+  std::vector<std::unique_ptr<BaseAST> > *vec_val;
 }
 
 // lexer 返回的所有 token 种类的声明
