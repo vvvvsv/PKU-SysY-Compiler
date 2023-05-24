@@ -11,21 +11,11 @@ void CompUnitAST::KoopaIR() const {
   func_def->KoopaIR();
 }
 
-int CompUnitAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 /**************************Decl***************************/
 
 // Decl ::= ConstDecl | VarDecl;
 void DeclAST::KoopaIR() const {
   const_decl1_var_decl2->KoopaIR();
-}
-
-int DeclAST::Calc() const {
-  assert(0);
-  return 0;
 }
 
 // ConstDecl ::= "const" BType ConstDefList ";";
@@ -35,30 +25,16 @@ void ConstDeclAST::KoopaIR() const {
     const_def->KoopaIR();
 }
 
-int ConstDeclAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 // BType ::= "int";
 void BTypeAST::KoopaIR() const {
   assert(0);
   return;
 }
 
-int BTypeAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 // ConstDef ::= IDENT "=" ConstInitVal;
 void ConstDefAST::KoopaIR() const {
-  insert_symbol(ident, SYM_TYPE_CONST, const_init_val->Calc());
-}
-
-int ConstDefAST::Calc() const {
-  assert(0);
-  return 0;
+  insert_symbol(ident, SYM_TYPE_CONST,
+    dynamic_cast<ConstInitValAST*>(const_init_val.get())->Calc());
 }
 
 // ConstInitVal ::= ConstExp;
@@ -68,7 +44,7 @@ void ConstInitValAST::KoopaIR() const {
 }
 
 int ConstInitValAST::Calc() const {
-  return const_exp->Calc();
+  return dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
 }
 
 // VarDecl ::= BType VarDefList ";";
@@ -76,11 +52,6 @@ int ConstInitValAST::Calc() const {
 void VarDeclAST::KoopaIR() const {
   for(auto& var_def : *var_def_list)
     var_def->KoopaIR();
-}
-
-int VarDeclAST::Calc() const {
-  assert(0);
-  return 0;
 }
 
 // VarDef ::= IDENT | IDENT "=" InitVal;
@@ -97,21 +68,10 @@ void VarDefAST::KoopaIR() const {
   insert_symbol(ident, SYM_TYPE_VAR, 0);
 }
 
-int VarDefAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 // InitVal ::= Exp;
 void InitValAST::KoopaIR() const {
   exp->KoopaIR();
 }
-
-int InitValAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 
 /**************************Func***************************/
 
@@ -125,19 +85,9 @@ void FuncDefAST::KoopaIR() const {
   std::cout << std::endl << "}" << std::endl;
 }
 
-int FuncDefAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 // FuncType ::= "int";
 void FuncTypeAST::KoopaIR() const {
   std::cout << "i32";
-}
-
-int FuncTypeAST::Calc() const {
-  assert(0);
-  return 0;
 }
 
 /**************************Block***************************/
@@ -152,19 +102,9 @@ void BlockAST::KoopaIR() const {
   }
 }
 
-int BlockAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 // BlockItem ::= Decl | Stmt;
 void BlockItemAST::KoopaIR() const {
   decl1_stmt2->KoopaIR();
-}
-
-int BlockItemAST::Calc() const {
-  assert(0);
-  return 0;
 }
 
 // Stmt ::= LVal "=" Exp ";"
@@ -184,11 +124,6 @@ void StmtAST::KoopaIR() const {
   }
 }
 
-int StmtAST::Calc() const {
-  assert(0);
-  return 0;
-}
-
 /***************************Exp***************************/
 
 // Exp ::= LOrExp;
@@ -197,7 +132,7 @@ void ExpAST::KoopaIR() const {
 }
 
 int ExpAST::Calc() const {
-  return lorexp->Calc();
+  return dynamic_cast<ExpBaseAST*>(lorexp.get())->Calc();
 }
 
 // LVal ::= IDENT;
@@ -249,10 +184,10 @@ void PrimaryExpAST::KoopaIR() const {
 
 int PrimaryExpAST::Calc() const {
   if(type==1) {
-    return exp1_lval2->Calc();
+    return dynamic_cast<ExpBaseAST*>(exp1_lval2.get())->Calc();
   }
   else if(type==2) {
-    return exp1_lval2->Calc();
+    return dynamic_cast<ExpBaseAST*>(exp1_lval2.get())->Calc();
   }
   else if(type==3) {
     return number;
@@ -286,10 +221,10 @@ void UnaryExpAST::KoopaIR() const {
 
 int UnaryExpAST::Calc() const {
   if(type==1) {
-    return primaryexp1_unaryexp2->Calc();
+    return dynamic_cast<ExpBaseAST*>(primaryexp1_unaryexp2.get())->Calc();
   }
   else if(type==2) {
-    int tmp = primaryexp1_unaryexp2->Calc();
+    int tmp = dynamic_cast<ExpBaseAST*>(primaryexp1_unaryexp2.get())->Calc();
     if(unaryop=='+') {
       return tmp;
     }
@@ -338,11 +273,11 @@ void MulExpAST::KoopaIR() const {
 
 int MulExpAST::Calc() const {
   if(type==1) {
-    return unaryexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(unaryexp.get())->Calc();
   }
   else if(type==2) {
-    int left = mulexp->Calc();
-    int right = unaryexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(mulexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(unaryexp.get())->Calc();
     if(mulop=='*') {
       return left * right;
     }
@@ -385,11 +320,11 @@ void AddExpAST::KoopaIR() const {
 
 int AddExpAST::Calc() const {
   if(type==1) {
-    return mulexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(mulexp.get())->Calc();
   }
   else if(type==2) {
-    int left = addexp->Calc();
-    int right = mulexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(addexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(mulexp.get())->Calc();
     if(addop=='+') {
       return left + right;
     }
@@ -441,11 +376,11 @@ void RelExpAST::KoopaIR() const {
 
 int RelExpAST::Calc() const {
   if(type==1) {
-    return addexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(addexp.get())->Calc();
   }
   else if(type==2) {
-    int left = relexp->Calc();
-    int right = addexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(relexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(addexp.get())->Calc();
     if(relop=="<") {
       return left < right;
     }
@@ -491,11 +426,11 @@ void EqExpAST::KoopaIR() const {
 
 int EqExpAST::Calc() const {
   if(type==1) {
-    return relexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(relexp.get())->Calc();
   }
   else if(type==2) {
-    int left = eqexp->Calc();
-    int right = relexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(eqexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(relexp.get())->Calc();
     if(eqop=="==") {
       return left == right;
     }
@@ -537,11 +472,11 @@ void LAndExpAST::KoopaIR() const {
 
 int LAndExpAST::Calc() const {
   if(type==1) {
-    return eqexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(eqexp.get())->Calc();
   }
   else if(type==2) {
-    int left = landexp->Calc();
-    int right = eqexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(landexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(eqexp.get())->Calc();
     return left && right;
   }
   assert(0);
@@ -578,11 +513,11 @@ void LOrExpAST::KoopaIR() const {
 
 int LOrExpAST::Calc() const {
   if(type==1) {
-    return landexp->Calc();
+    return dynamic_cast<ExpBaseAST*>(landexp.get())->Calc();
   }
   else if(type==2) {
-    int left = lorexp->Calc();
-    int right = landexp->Calc();
+    int left = dynamic_cast<ExpBaseAST*>(lorexp.get())->Calc();
+    int right = dynamic_cast<ExpBaseAST*>(landexp.get())->Calc();
     return left || right;
   }
   assert(0);
@@ -596,5 +531,5 @@ void ConstExpAST::KoopaIR() const {
 }
 
 int ConstExpAST::Calc() const {
-  return exp->Calc();
+  return dynamic_cast<ExpBaseAST*>(exp.get())->Calc();
 }

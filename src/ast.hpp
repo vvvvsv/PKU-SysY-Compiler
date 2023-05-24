@@ -12,7 +12,6 @@ class BaseAST {
   virtual ~BaseAST() = default;
   // 输出 KoopaIR 到 stdout
   virtual void KoopaIR() const = 0;
-  virtual int Calc() const = 0;
 };
 
 /************************CompUnit*************************/
@@ -22,7 +21,6 @@ class CompUnitAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> func_def;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 /**************************Decl***************************/
@@ -33,7 +31,6 @@ class DeclAST : public BaseAST {
   int type;
   std::unique_ptr<BaseAST> const_decl1_var_decl2;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // ConstDecl ::= "const" BType ConstDefList ";";
@@ -43,14 +40,12 @@ class ConstDeclAST : public BaseAST {
   std::unique_ptr<BaseAST> b_type;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_def_list;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // BType ::= "int";
 class BTypeAST : public BaseAST {
  public:
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // ConstDef ::= IDENT "=" ConstInitVal;
@@ -59,7 +54,6 @@ class ConstDefAST : public BaseAST {
   std::string ident;
   std::unique_ptr<BaseAST> const_init_val;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // ConstInitVal ::= ConstExp;
@@ -67,7 +61,7 @@ class ConstInitValAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> const_exp;
   void KoopaIR() const override;
-  int Calc() const override;
+  int Calc() const;
 };
 
 // VarDecl ::= BType VarDefList ";";
@@ -77,7 +71,6 @@ class VarDeclAST : public BaseAST {
   std::unique_ptr<BaseAST> b_type;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > var_def_list;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // VarDef ::= IDENT | IDENT "=" InitVal;
@@ -87,7 +80,6 @@ class VarDefAST : public BaseAST {
   std::string ident;
   std::unique_ptr<BaseAST> init_val;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // InitVal ::= Exp;
@@ -95,7 +87,6 @@ class InitValAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 /**************************Func***************************/
@@ -107,14 +98,12 @@ class FuncDefAST : public BaseAST {
   std::string ident;
   std::unique_ptr<BaseAST> block;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // FuncType ::= "int";
 class FuncTypeAST : public BaseAST {
  public:
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 /**************************Block***************************/
@@ -125,7 +114,6 @@ class BlockAST : public BaseAST {
  public:
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > block_item_list;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // BlockItem ::= Decl | Stmt;
@@ -134,7 +122,6 @@ class BlockItemAST : public BaseAST {
   int type;
   std::unique_ptr<BaseAST> decl1_stmt2;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 // Stmt ::= LVal "=" Exp ";"
@@ -145,13 +132,17 @@ class StmtAST : public BaseAST {
   std::unique_ptr<BaseAST> lval;
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
-  int Calc() const override;
 };
 
 /***************************Exp***************************/
 
+class ExpBaseAST : public BaseAST {
+ public:
+  virtual int Calc() const = 0;
+};
+
 // Exp ::= LOrExp;
-class ExpAST : public BaseAST {
+class ExpAST : public ExpBaseAST {
  public:
   std::unique_ptr<BaseAST> lorexp;
   void KoopaIR() const override;
@@ -159,7 +150,7 @@ class ExpAST : public BaseAST {
 };
 
 // LVal ::= IDENT;
-class LValAST : public BaseAST {
+class LValAST : public ExpBaseAST {
  public:
   std::string ident;
   void KoopaIR() const override;
@@ -167,7 +158,7 @@ class LValAST : public BaseAST {
 };
 
 // PrimaryExp ::= "(" Exp ")" | LVal | Number;
-class PrimaryExpAST : public BaseAST {
+class PrimaryExpAST : public ExpBaseAST {
  public:
   int type;
   std::unique_ptr<BaseAST> exp1_lval2;
@@ -178,7 +169,7 @@ class PrimaryExpAST : public BaseAST {
 
 // UnaryExp ::= PrimaryExp | UnaryOp UnaryExp;
 // UnaryOp ::= "+" | "-" | "!"
-class UnaryExpAST : public BaseAST {
+class UnaryExpAST : public ExpBaseAST {
  public:
   int type;
   char unaryop;
@@ -189,7 +180,7 @@ class UnaryExpAST : public BaseAST {
 
 // MulExp ::= UnaryExp | MulExp MulOp UnaryExp;
 // MulOp ::= "*" | "/" | "%"
-class MulExpAST : public BaseAST {
+class MulExpAST : public ExpBaseAST {
  public:
   int type;
   char mulop;
@@ -201,7 +192,7 @@ class MulExpAST : public BaseAST {
 
 // AddExp ::= MulExp | AddExp AddOp MulExp;
 // AddOp ::= "+" | "-"
-class AddExpAST : public BaseAST {
+class AddExpAST : public ExpBaseAST {
  public:
   int type;
   char addop;
@@ -213,7 +204,7 @@ class AddExpAST : public BaseAST {
 
 // RelExp ::= AddExp | RelExp RelOp AddExp;
 // RelOp ::= "<" | ">" | "<=" | ">="
-class RelExpAST : public BaseAST {
+class RelExpAST : public ExpBaseAST {
  public:
   int type;
   std::string relop;
@@ -225,7 +216,7 @@ class RelExpAST : public BaseAST {
 
 // EqExp ::= RelExp | EqExp EqOp RelExp;
 // EqOp ::= "==" | "!="
-class EqExpAST : public BaseAST {
+class EqExpAST : public ExpBaseAST {
  public:
   int type;
   std::string eqop;
@@ -236,7 +227,7 @@ class EqExpAST : public BaseAST {
 };
 
 // LAndExp ::= EqExp | LAndExp "&&" EqExp;
-class LAndExpAST : public BaseAST {
+class LAndExpAST : public ExpBaseAST {
  public:
   int type;
   std::unique_ptr<BaseAST> landexp;
@@ -246,7 +237,7 @@ class LAndExpAST : public BaseAST {
 };
 
 // LOrExp  ::= LAndExp | LOrExp "||" LAndExp;
-class LOrExpAST : public BaseAST {
+class LOrExpAST : public ExpBaseAST {
  public:
   int type;
   std::unique_ptr<BaseAST> lorexp;
@@ -256,7 +247,7 @@ class LOrExpAST : public BaseAST {
 };
 
 // ConstExp ::= Exp;
-class ConstExpAST : public BaseAST {
+class ConstExpAST : public ExpBaseAST {
  public:
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
