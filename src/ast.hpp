@@ -15,6 +15,8 @@ class BaseAST {
   virtual int Calc() const = 0;
 };
 
+/************************CompUnit*************************/
+
 // CompUnit ::= FuncDef;
 class CompUnitAST : public BaseAST {
  public:
@@ -22,6 +24,8 @@ class CompUnitAST : public BaseAST {
   void KoopaIR() const override;
   int Calc() const override;
 };
+
+/**************************Decl***************************/
 
 // Decl ::= ConstDecl;
 class DeclAST : public BaseAST {
@@ -65,6 +69,8 @@ class ConstInitValAST : public BaseAST {
   int Calc() const override;
 };
 
+/**************************Func***************************/
+
 // FuncDef ::= FuncType IDENT "(" ")" Block;
 class FuncDefAST : public BaseAST {
  public:
@@ -81,6 +87,8 @@ class FuncTypeAST : public BaseAST {
   void KoopaIR() const override;
   int Calc() const override;
 };
+
+/**************************Block***************************/
 
 // Block ::= "{" BlockItemList "}";
 // BlockItemList ::=  | BlockItemList BlockItem;
@@ -107,6 +115,8 @@ class StmtAST : public BaseAST {
   void KoopaIR() const override;
   int Calc() const override;
 };
+
+/***************************Exp***************************/
 
 // Exp ::= LOrExp;
 class ExpAST : public BaseAST {
