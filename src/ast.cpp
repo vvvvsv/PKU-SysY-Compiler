@@ -4,6 +4,9 @@
 
 static int koopacnt = 0;
 
+/************************CompUnit*************************/
+
+// CompUnit ::= FuncDef
 void CompUnitAST::KoopaIR() const {
   func_def->KoopaIR();
 }
@@ -13,6 +16,9 @@ int CompUnitAST::Calc() const {
   return 0;
 }
 
+/**************************Decl***************************/
+
+// Decl ::= ConstDecl;
 void DeclAST::KoopaIR() const {
   const_decl->KoopaIR();
 }
@@ -22,6 +28,8 @@ int DeclAST::Calc() const {
   return 0;
 }
 
+// ConstDecl ::= "const" BType ConstDefList ";";
+// ConstDefList ::= ConstDef | ConstDefList "," ConstDef;
 void ConstDeclAST::KoopaIR() const {
   for(auto& const_def: *const_def_list)
     const_def->KoopaIR();
@@ -32,6 +40,7 @@ int ConstDeclAST::Calc() const {
   return 0;
 }
 
+// BType ::= "int";
 void BTypeAST::KoopaIR() const {
   assert(0);
   return;
@@ -42,6 +51,7 @@ int BTypeAST::Calc() const {
   return 0;
 }
 
+// ConstDef ::= IDENT "=" ConstInitVal;
 void ConstDefAST::KoopaIR() const {
   insert_symbol(ident, SYM_TYPE_CONST, const_init_val->Calc());
 }
@@ -51,6 +61,7 @@ int ConstDefAST::Calc() const {
   return 0;
 }
 
+// ConstInitVal ::= ConstExp;
 void ConstInitValAST::KoopaIR() const {
   assert(0);
   return;
@@ -60,6 +71,9 @@ int ConstInitValAST::Calc() const {
   return const_exp->Calc();
 }
 
+/**************************Func***************************/
+
+// FuncDef ::= FuncType IDENT "(" ")" Block;
 void FuncDefAST::KoopaIR() const {
   std::cout << "fun @" << ident << "(): ";
   func_type->KoopaIR();
@@ -73,6 +87,7 @@ int FuncDefAST::Calc() const {
   return 0;
 }
 
+// FuncType ::= "int";
 void FuncTypeAST::KoopaIR() const {
   std::cout << "i32";
 }
@@ -82,6 +97,10 @@ int FuncTypeAST::Calc() const {
   return 0;
 }
 
+/**************************Block***************************/
+
+// Block ::= "{" BlockItemList "}";
+// BlockItemList ::=  | BlockItemList BlockItem;
 void BlockAST::KoopaIR() const {
   std::cout << "%entry:" << std::endl;
   for(auto& block_item: *block_item_list)
@@ -95,6 +114,7 @@ int BlockAST::Calc() const {
   return 0;
 }
 
+// BlockItem ::= Decl | Stmt;
 void BlockItemAST::KoopaIR() const {
   decl1_stmt2->KoopaIR();
 }
@@ -104,6 +124,7 @@ int BlockItemAST::Calc() const {
   return 0;
 }
 
+// Stmt ::= "return" Exp ";";
 void StmtAST::KoopaIR() const {
   exp->KoopaIR();
   std::cout << "  ret %" << koopacnt-1;
@@ -114,6 +135,9 @@ int StmtAST::Calc() const {
   return 0;
 }
 
+/***************************Exp***************************/
+
+// Exp ::= LOrExp;
 void ExpAST::KoopaIR() const {
   lorexp->KoopaIR();
 }
@@ -122,6 +146,7 @@ int ExpAST::Calc() const {
   return lorexp->Calc();
 }
 
+// LVal ::= IDENT;
 void LValAST::KoopaIR() const {
   auto val = query_symbol(ident);
   assert(val->type != SYM_TYPE_UND);
@@ -146,6 +171,7 @@ int LValAST::Calc() const {
   return val->value;
 }
 
+// PrimaryExp ::= "(" Exp ")" | LVal | Number;
 void PrimaryExpAST::KoopaIR() const {
   if(type==1) {
     exp1_lval2->KoopaIR();
@@ -174,6 +200,8 @@ int PrimaryExpAST::Calc() const {
   return 0;
 }
 
+// UnaryExp ::= PrimaryExp | UnaryOp UnaryExp;
+// UnaryOp ::= "+" | "-" | "!"
 void UnaryExpAST::KoopaIR() const {
   if(type==1) {
     primaryexp1_unaryexp2->KoopaIR();
@@ -213,6 +241,8 @@ int UnaryExpAST::Calc() const {
   return 0;
 }
 
+// MulExp ::= UnaryExp | MulExp MulOp UnaryExp;
+// MulOp ::= "*" | "/" | "%"
 void MulExpAST::KoopaIR() const {
   if(type==1) {
     unaryexp->KoopaIR();
@@ -261,6 +291,8 @@ int MulExpAST::Calc() const {
   return 0;
 }
 
+// AddExp ::= MulExp | AddExp AddOp MulExp;
+// AddOp ::= "+" | "-"
 void AddExpAST::KoopaIR() const {
   if(type==1) {
     mulexp->KoopaIR();
@@ -301,6 +333,8 @@ int AddExpAST::Calc() const {
   return 0;
 }
 
+// RelExp ::= AddExp | RelExp RelOp AddExp;
+// RelOp ::= "<" | ">" | "<=" | ">="
 void RelExpAST::KoopaIR() const {
   if(type==1) {
     addexp->KoopaIR();
@@ -357,6 +391,8 @@ int RelExpAST::Calc() const {
   return 0;
 }
 
+// EqExp ::= RelExp | EqExp EqOp RelExp;
+// EqOp ::= "==" | "!="
 void EqExpAST::KoopaIR() const {
   if(type==1) {
     relexp->KoopaIR();
@@ -397,6 +433,7 @@ int EqExpAST::Calc() const {
   return 0;
 }
 
+// LAndExp ::= EqExp | LAndExp "&&" EqExp;
 void LAndExpAST::KoopaIR() const {
   if(type==1) {
     eqexp->KoopaIR();
@@ -434,6 +471,7 @@ int LAndExpAST::Calc() const {
   return 0;
 }
 
+// LOrExp  ::= LAndExp | LOrExp "||" LAndExp;
 void LOrExpAST::KoopaIR() const {
   if(type==1) {
     landexp->KoopaIR();
@@ -471,6 +509,7 @@ int LOrExpAST::Calc() const {
   return 0;
 }
 
+// ConstExp ::= Exp;
 void ConstExpAST::KoopaIR() const {
   assert(0);
   return;
