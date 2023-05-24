@@ -20,7 +20,7 @@ int CompUnitAST::Calc() const {
 
 // Decl ::= ConstDecl | VarDecl;
 void DeclAST::KoopaIR() const {
-  const_decl->KoopaIR();
+  const_decl1_var_decl2->KoopaIR();
 }
 
 int DeclAST::Calc() const {
@@ -73,13 +73,51 @@ int ConstInitValAST::Calc() const {
 
 // VarDecl ::= BType VarDefList ";";
 // VarDefList ::= VarDef | VarDefList "," VarDef;
+void VarDeclAST::KoopaIR() const {
+  for(auto& var_def : *var_def_list)
+    var_def->KoopaIR();
+}
+
+int VarDeclAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 // VarDef ::= IDENT | IDENT "=" InitVal;
+void VarDefAST::KoopaIR() const {
+  // 先 alloc 一段内存
+  // @x = alloc i32
+  std::cout << "  @" << ident << " = alloc i32" << std::endl;
+  if(type==2) {
+    init_val->KoopaIR();
+    // 存入 InitVal
+    // store %1, @x
+    std::cout << "  store %" << koopacnt-1 << ", @" << ident << std::endl;
+  }
+  insert_symbol(ident, SYM_TYPE_VAR, 0);
+}
+
+int VarDefAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 // InitVal ::= Exp;
+void InitValAST::KoopaIR() const {
+  exp->KoopaIR();
+}
+
+int InitValAST::Calc() const {
+  assert(0);
+  return 0;
+}
+
 
 /**************************Func***************************/
 
 // FuncDef ::= FuncType IDENT "(" ")" Block;
 void FuncDefAST::KoopaIR() const {
+  // fun @main(): i32 {}
   std::cout << "fun @" << ident << "(): ";
   func_type->KoopaIR();
   std::cout << " {" << std::endl;
@@ -131,11 +169,19 @@ int BlockItemAST::Calc() const {
 
 // Stmt ::= LVal "=" Exp ";"
 //        | "return" Exp ";";
-
-// Stmt ::= "return" Exp ";";
 void StmtAST::KoopaIR() const {
-  exp->KoopaIR();
-  std::cout << "  ret %" << koopacnt-1;
+  if(type==1) {
+    exp->KoopaIR();
+    // 存入刚刚计算出的值
+    // store %1, @x
+    std::cout << "  store %" << koopacnt-1 << ", @";
+    std::cout << dynamic_cast<LValAST*>(lval.get())->ident << std::endl;
+  }
+  else if(type==2) {
+    exp->KoopaIR();
+    // ret %0
+    std::cout << "  ret %" << koopacnt-1;
+  }
 }
 
 int StmtAST::Calc() const {
@@ -155,6 +201,8 @@ int ExpAST::Calc() const {
 }
 
 // LVal ::= IDENT;
+// 只有 LVal 出现在表达式中时会调用该KoopaIR
+// 如果 LVal 作为左值出现，则在父节点读取其ident
 void LValAST::KoopaIR() const {
   auto val = query_symbol(ident);
   assert(val->type != SYM_TYPE_UND);
@@ -162,13 +210,17 @@ void LValAST::KoopaIR() const {
   if(val->type == SYM_TYPE_CONST)
   {
     // 此处有优化空间
+    // %0 = add 0, 233
     std::cout << "  %" << koopacnt << " = add 0, ";
     std::cout<< val->value << std::endl;
     koopacnt++;
   }
   else if(val->type == SYM_TYPE_VAR)
   {
-    assert(0);
+    // 从内存读取 LVal
+    // %0 = load @x
+    std::cout << "  %" << koopacnt << " = load @" << ident << std::endl;
+    koopacnt++;
   }
   return;
 }
@@ -188,6 +240,7 @@ void PrimaryExpAST::KoopaIR() const {
     exp1_lval2->KoopaIR();
   }
   else if(type==3) {
+    // %0 = add 0, 233
     std::cout << "  %" << koopacnt << " = add 0, ";
     std::cout<< number << std::endl;
     koopacnt++;
@@ -217,11 +270,13 @@ void UnaryExpAST::KoopaIR() const {
   else if(type==2) {
     primaryexp1_unaryexp2->KoopaIR();
     if(unaryop=='-') {
+      // %1 = sub 0, %0
       std::cout << "  %" << koopacnt << " = sub 0, %";
       std::cout << koopacnt-1 <<std::endl;
       koopacnt++;
     }
     else if(unaryop=='!') {
+      // %1 = eq 0, %0
       std::cout << "  %" << koopacnt << " = eq 0, %";
       std::cout << koopacnt-1 <<std::endl;
       koopacnt++;
@@ -261,16 +316,19 @@ void MulExpAST::KoopaIR() const {
     unaryexp->KoopaIR();
     int right = koopacnt-1;
     if(mulop=='*') {
+      // %2 = mul %0, %1
       std::cout << "  %" << koopacnt << " = mul %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(mulop=='/') {
+      // %2 = div %0, %1
       std::cout << "  %" << koopacnt << " = div %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(mulop=='%') {
+      // %2 = mod %0, %1
       std::cout << "  %" << koopacnt << " = mod %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
@@ -311,11 +369,13 @@ void AddExpAST::KoopaIR() const {
     mulexp->KoopaIR();
     int right = koopacnt-1;
     if(addop=='+') {
+      // %2 = add %0, %1
       std::cout << "  %" << koopacnt << " = add %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(addop=='-') {
+      // %2 = sub %0, %1
       std::cout << "  %" << koopacnt << " = sub %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
@@ -353,21 +413,25 @@ void RelExpAST::KoopaIR() const {
     addexp->KoopaIR();
     int right = koopacnt-1;
     if(relop=="<") {
+      // %2 = lt %0, %1
       std::cout << "  %" << koopacnt << " = lt %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(relop==">") {
+      // %2 = gt %0, %1
       std::cout << "  %" << koopacnt << " = gt %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(relop=="<=") {
+      // %2 = le %0, %1
       std::cout << "  %" << koopacnt << " = le %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(relop==">=") {
+      // %2 = ge %0, %1
       std::cout << "  %" << koopacnt << " = ge %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
@@ -411,11 +475,13 @@ void EqExpAST::KoopaIR() const {
     relexp->KoopaIR();
     int right = koopacnt-1;
     if(eqop=="==") {
+      // %2 = eq %0, %1
       std::cout << "  %" << koopacnt << " = eq %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
     }
     else if(eqop=="!=") {
+      // %2 = ne %0, %1
       std::cout << "  %" << koopacnt << " = ne %";
       std::cout << left << ", %" << right << std::endl;
       koopacnt++;
@@ -452,14 +518,17 @@ void LAndExpAST::KoopaIR() const {
     eqexp->KoopaIR();
     int right = koopacnt-1;
     // A&&B <==> (A!=0)&(B!=0)
+    // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
     std::cout << left << ", 0" << std::endl;
     left = koopacnt;
     koopacnt++;
+    // %3 = ne %1, 0
     std::cout << "  %" << koopacnt << " = ne %";
     std::cout << right << ", 0" << std::endl;
     right = koopacnt;
     koopacnt++;
+    // %4 = and %2, %3
     std::cout << "  %" << koopacnt << " = and %";
     std::cout << left << ", %" << right << std::endl;
     koopacnt++;
@@ -490,14 +559,17 @@ void LOrExpAST::KoopaIR() const {
     landexp->KoopaIR();
     int right = koopacnt-1;
     // A||B <==> (A!=0)|(B!=0)
+    // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
     std::cout << left << ", 0" << std::endl;
     left = koopacnt;
     koopacnt++;
+    // %3 = ne %1, 0
     std::cout << "  %" << koopacnt << " = ne %";
     std::cout << right << ", 0" << std::endl;
     right = koopacnt;
     koopacnt++;
+    // %4 = or %2, %3
     std::cout << "  %" << koopacnt << " = or %";
     std::cout << left << ", %" << right << std::endl;
     koopacnt++;

@@ -220,8 +220,8 @@ BlockItem
 
 Stmt
   : LVal '=' Exp ';' {
-    ast->type = 1;
     auto ast = new StmtAST();
+    ast->type = 1;
     ast->lval = unique_ptr<BaseAST>($1);
     ast->exp = unique_ptr<BaseAST>($3);
     $$ = ast;
