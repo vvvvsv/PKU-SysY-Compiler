@@ -18,7 +18,7 @@ int CompUnitAST::Calc() const {
 
 /**************************Decl***************************/
 
-// Decl ::= ConstDecl;
+// Decl ::= ConstDecl | VarDecl;
 void DeclAST::KoopaIR() const {
   const_decl->KoopaIR();
 }
@@ -70,6 +70,11 @@ void ConstInitValAST::KoopaIR() const {
 int ConstInitValAST::Calc() const {
   return const_exp->Calc();
 }
+
+// VarDecl ::= BType VarDefList ";";
+// VarDefList ::= VarDef | VarDefList "," VarDef;
+// VarDef ::= IDENT | IDENT "=" InitVal;
+// InitVal ::= Exp;
 
 /**************************Func***************************/
 
@@ -123,6 +128,9 @@ int BlockItemAST::Calc() const {
   assert(0);
   return 0;
 }
+
+// Stmt ::= LVal "=" Exp ";"
+//        | "return" Exp ";";
 
 // Stmt ::= "return" Exp ";";
 void StmtAST::KoopaIR() const {

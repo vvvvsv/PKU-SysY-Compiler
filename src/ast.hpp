@@ -27,10 +27,11 @@ class CompUnitAST : public BaseAST {
 
 /**************************Decl***************************/
 
-// Decl ::= ConstDecl;
+// Decl ::= ConstDecl | VarDecl;
 class DeclAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> const_decl;
+  int type;
+  std::unique_ptr<BaseAST> const_decl1_var_decl2;
   void KoopaIR() const override;
   int Calc() const override;
 };
@@ -65,6 +66,34 @@ class ConstDefAST : public BaseAST {
 class ConstInitValAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> const_exp;
+  void KoopaIR() const override;
+  int Calc() const override;
+};
+
+// VarDecl ::= BType VarDefList ";";
+// VarDefList ::= VarDef | VarDefList "," VarDef;
+class VarDeclAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> b_type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > var_def_list;
+  void KoopaIR() const override;
+  int Calc() const override;
+};
+
+// VarDef ::= IDENT | IDENT "=" InitVal;
+class VarDefAST : public BaseAST {
+ public:
+  int type;
+  std::string ident;
+  std::unique_ptr<BaseAST> init_val;
+  void KoopaIR() const override;
+  int Calc() const override;
+};
+
+// InitVal ::= Exp;
+class InitValAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
   int Calc() const override;
 };
@@ -108,9 +137,12 @@ class BlockItemAST : public BaseAST {
   int Calc() const override;
 };
 
-// Stmt ::= "return" Exp ";";
+// Stmt ::= LVal "=" Exp ";"
+//        | "return" Exp ";";
 class StmtAST : public BaseAST {
  public:
+  int type;
+  std::unique_ptr<BaseAST> lval;
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
   int Calc() const override;
