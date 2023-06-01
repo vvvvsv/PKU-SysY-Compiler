@@ -58,14 +58,16 @@ void VarDeclAST::KoopaIR() const {
 void VarDefAST::KoopaIR() const {
   // 先 alloc 一段内存
   // @x = alloc i32
-  std::cout << "  @" << ident << " = alloc i32" << std::endl;
+  std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+  insert_symbol(ident, SYM_TYPE_VAR, 0);
+
   if(type==2) {
     init_val->KoopaIR();
     // 存入 InitVal
     // store %1, @x
-    std::cout << "  store %" << koopacnt-1 << ", @" << ident << std::endl;
+    std::cout << "  store %" << koopacnt-1 << ", @";
+    std::cout << query_symbol(ident).first << ident << std::endl;
   }
-  insert_symbol(ident, SYM_TYPE_VAR, 0);
 }
 
 // InitVal ::= Exp;
@@ -81,8 +83,9 @@ void FuncDefAST::KoopaIR() const {
   std::cout << "fun @" << ident << "(): ";
   func_type->KoopaIR();
   std::cout << " {" << std::endl;
+  std::cout << "%entry:" << std::endl;
   block->KoopaIR();
-  std::cout << std::endl << "}" << std::endl;
+  std::cout << "}" << std::endl;
 }
 
 // FuncType ::= "int";
@@ -95,11 +98,12 @@ void FuncTypeAST::KoopaIR() const {
 // Block ::= "{" BlockItemList "}";
 // BlockItemList ::=  | BlockItemList BlockItem;
 void BlockAST::KoopaIR() const {
-  std::cout << "%entry:" << std::endl;
+  enter_code_block();
   for(auto& block_item: *block_item_list)
   {
     block_item->KoopaIR();
   }
+  exit_code_block();
 }
 
 // BlockItem ::= Decl | Stmt;
@@ -108,19 +112,36 @@ void BlockItemAST::KoopaIR() const {
 }
 
 // Stmt ::= LVal "=" Exp ";"
+//        | Exp ";"
+//        | ";"
+//        | Block
 //        | "return" Exp ";";
+//        | "return" ";";
 void StmtAST::KoopaIR() const {
   if(type==1) {
     exp->KoopaIR();
     // 存入刚刚计算出的值
     // store %1, @x
+    const std::string& ident = dynamic_cast<LValAST*>(lval1_block4.get())->ident;
     std::cout << "  store %" << koopacnt-1 << ", @";
-    std::cout << dynamic_cast<LValAST*>(lval.get())->ident << std::endl;
+    std::cout << query_symbol(ident).first << ident << std::endl;
   }
   else if(type==2) {
     exp->KoopaIR();
+  }
+  else if(type==3) {
+    // do nothing
+  }
+  else if(type==4) {
+    lval1_block4->KoopaIR();
+  }
+  else if(type==5) {
+    exp->KoopaIR();
     // ret %0
-    std::cout << "  ret %" << koopacnt-1;
+    std::cout << "  ret %" << koopacnt-1 << std::endl;
+  }
+  else if(type==6) {
+    std::cout << "  ret" << std::endl;
   }
 }
 
@@ -136,25 +157,25 @@ int ExpAST::Calc() const {
 }
 
 // LVal ::= IDENT;
-// 只有 LVal 出现在表达式中时会调用该KoopaIR
-// 如果 LVal 作为左值出现，则在父节点读取其ident
+// 只有 LVal 出现在表达式中时会调用该 KoopaIR
+// 如果 LVal 作为左值出现，则在父节点读取其 ident
 void LValAST::KoopaIR() const {
   auto val = query_symbol(ident);
-  assert(val->type != SYM_TYPE_UND);
+  assert(val.second->type != SYM_TYPE_UND);
 
-  if(val->type == SYM_TYPE_CONST)
+  if(val.second->type == SYM_TYPE_CONST)
   {
     // 此处有优化空间
     // %0 = add 0, 233
     std::cout << "  %" << koopacnt << " = add 0, ";
-    std::cout<< val->value << std::endl;
+    std::cout<< val.second->value << std::endl;
     koopacnt++;
   }
-  else if(val->type == SYM_TYPE_VAR)
+  else if(val.second->type == SYM_TYPE_VAR)
   {
     // 从内存读取 LVal
     // %0 = load @x
-    std::cout << "  %" << koopacnt << " = load @" << ident << std::endl;
+    std::cout << "  %" << koopacnt << " = load @" << val.first << ident << std::endl;
     koopacnt++;
   }
   return;
@@ -162,8 +183,8 @@ void LValAST::KoopaIR() const {
 
 int LValAST::Calc() const {
   auto val = query_symbol(ident);
-  assert(val->type == SYM_TYPE_CONST);
-  return val->value;
+  assert(val.second->type == SYM_TYPE_CONST);
+  return val.second->value;
 }
 
 // PrimaryExp ::= "(" Exp ")" | LVal | Number;

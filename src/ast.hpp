@@ -125,11 +125,15 @@ class BlockItemAST : public BaseAST {
 };
 
 // Stmt ::= LVal "=" Exp ";"
+//        | Exp ";"
+//        | ";"
+//        | Block
 //        | "return" Exp ";";
+//        | "return" ";";
 class StmtAST : public BaseAST {
  public:
   int type;
-  std::unique_ptr<BaseAST> lval;
+  std::unique_ptr<BaseAST> lval1_block4;
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
 };
