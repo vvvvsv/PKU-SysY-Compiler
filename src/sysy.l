@@ -42,6 +42,8 @@ EqOp          [!=]=
 "int"           { return INT; }
 "return"        { return RETURN; }
 "const"         { return CONST; }
+"if"            { return IF; }
+"else"          { return ELSE; }
 
 {RelOp}         { yylval.str_val = new string(yytext); return RELOP; }
 {EqOp}          { yylval.str_val = new string(yytext); return EQOP; }

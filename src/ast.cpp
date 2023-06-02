@@ -2,7 +2,12 @@
 #include <cassert>
 #include "ast.hpp"
 
+// 计数 koopa 语句的返回值 %xxx
 static int koopacnt = 0;
+// 计数 if 语句，用于设置 entry
+static int ifcnt = 0;
+// 当前 entry 是否已经 ret, 若为 1 的话不应再生成任何语句
+static int entry_returned = 0;
 
 /************************CompUnit*************************/
 
@@ -82,15 +87,28 @@ void FuncDefAST::KoopaIR() const {
   // fun @main(): i32 {}
   std::cout << "fun @" << ident << "(): ";
   func_type->KoopaIR();
+
   std::cout << " {" << std::endl;
   std::cout << "%entry:" << std::endl;
+  entry_returned = 0;
   block->KoopaIR();
+  // 若函数还未返回, 补一个ret
+  // 无返回值补 ret
+  if (!entry_returned) {
+    const std::string& type = dynamic_cast<FuncTypeAST*>(func_type.get())->type;
+    if (type == "i32")
+      std::cout << "  ret 0" << std::endl;
+    else if (type == "void")
+      std::cout << "  ret" << std::endl;
+    else
+      assert(0);
+  }
   std::cout << "}" << std::endl;
 }
 
 // FuncType ::= "int";
 void FuncTypeAST::KoopaIR() const {
-  std::cout << "i32";
+  std::cout << type;
 }
 
 /**************************Block***************************/
@@ -101,6 +119,7 @@ void BlockAST::KoopaIR() const {
   enter_code_block();
   for(auto& block_item: *block_item_list)
   {
+    if(entry_returned) break;
     block_item->KoopaIR();
   }
   exit_code_block();
@@ -137,16 +156,24 @@ void StmtBlockAST::KoopaIR() const {
   block->KoopaIR();
 }
 
+//        | "if" "(" Exp ")" Stmt
+//        | "if" "(" Exp ")" Stmt "else" Stmt
+void StmtIfAST::KoopaIR() const {
+  assert(0);
+}
+
 //        | "return" ";";
 //        | "return" Exp ";";
 void StmtReturnAST::KoopaIR() const {
   if(type==1) {
     std::cout << "  ret" << std::endl;
+    entry_returned = 1;
   }
   else if(type==2) {
     exp->KoopaIR();
     // ret %0
     std::cout << "  ret %" << koopacnt-1 << std::endl;
+    entry_returned = 1;
   }
 }
 

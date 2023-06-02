@@ -103,6 +103,7 @@ class FuncDefAST : public BaseAST {
 // FuncType ::= "int";
 class FuncTypeAST : public BaseAST {
  public:
+  std::string type;
   void KoopaIR() const override;
 };
 
@@ -136,26 +137,33 @@ class StmtAssignAST : public BaseAST {
 //        | Exp ";"
 class StmtExpAST : public BaseAST {
  public:
-   int type;
+  int type;
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
 };
-
-// //        | "if" "(" Exp ")" Stmt
-// //        | "if" "(" Exp ")" Stmt "else" Stmt
-// class StmtIfAST : public BaseAST {
-//  public:
-//    int type;
-//   std::unique_ptr<BaseAST> exp;
-//   std::unique_ptr<BaseAST> stmt_if;
-//   std::unique_ptr<BaseAST> stmt_else;
-//   void KoopaIR() const override;
-// };
 
 //        | Block
 class StmtBlockAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> block;
+  void KoopaIR() const override;
+};
+
+//        | "if" "(" Exp ")" Stmt
+//        | "if" "(" Exp ")" Stmt "else" Stmt
+// 此处有移进/归约冲突, SysY 的语义规定了 else 必须和最近的 if 进行匹配
+// 则此处应选择发生冲突时应选择移进，即选择第二条规则
+// 在 sysy.y 中如下实现：
+// %precedence IFX
+// %precedence ELSE
+// IF "(" Exp ")" Stmt %prec IFX
+// IF "(" Exp ")" Stmt ELSE Stmt
+class StmtIfAST : public BaseAST {
+ public:
+  int type;
+  std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<BaseAST> stmt_if;
+  std::unique_ptr<BaseAST> stmt_else;
   void KoopaIR() const override;
 };
 
