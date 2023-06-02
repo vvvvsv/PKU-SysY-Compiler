@@ -156,8 +156,8 @@ class StmtBlockAST : public BaseAST {
 // 在 sysy.y 中如下实现：
 // %precedence IFX
 // %precedence ELSE
-// IF "(" Exp ")" Stmt %prec IFX
-// IF "(" Exp ")" Stmt ELSE Stmt
+// IF '(' Exp ')' Stmt %prec IFX
+// IF '(' Exp ')' Stmt ELSE Stmt
 class StmtIfAST : public BaseAST {
  public:
   int type;

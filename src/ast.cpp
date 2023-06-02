@@ -159,7 +159,56 @@ void StmtBlockAST::KoopaIR() const {
 //        | "if" "(" Exp ")" Stmt
 //        | "if" "(" Exp ")" Stmt "else" Stmt
 void StmtIfAST::KoopaIR() const {
-  assert(0);
+  if(entry_returned) return;
+  int ifcur = ifcnt;
+  ifcnt++;
+  exp->KoopaIR();
+
+  if(type==1) {
+    // br %0, %then, %end
+    std::cout << "  br %" << koopacnt-1 << ", %STMTIF_THEN_" << ifcur;
+    std::cout << ", %STMTIF_END_" << ifcur << std::endl;
+
+    // %STMTIF_THEN_233: 创建新的entry
+    std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    stmt_if->KoopaIR();
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_END_233: 创建新的entry
+    std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+  }
+  else if(type==2) {
+    // br %0, %then, %else
+    std::cout << "  br %" << koopacnt-1 << ", %STMTIF_THEN_" << ifcur;
+    std::cout << ", %STMTIF_ELSE_" << ifcur << std::endl;
+
+    // %STMTIF_THEN_233: 创建新的entry
+    std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    stmt_if->KoopaIR();
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_ELSE_233: 创建新的entry
+    std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    stmt_else->KoopaIR();
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_END_233: 创建新的entry
+    std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+  }
 }
 
 //        | "return" ";";

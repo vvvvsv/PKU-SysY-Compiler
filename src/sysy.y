@@ -245,14 +245,14 @@ Stmt
     ast->block = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
-  | IF "(" Exp ")" Stmt %prec IFX {
+  | IF '(' Exp ')' Stmt %prec IFX {
     auto ast = new StmtIfAST();
     ast->type = 1;
     ast->exp = unique_ptr<BaseAST>($3);
     ast->stmt_if = unique_ptr<BaseAST>($5);
     $$ = ast;
   }
-  | IF "(" Exp ")" Stmt ELSE Stmt {
+  | IF '(' Exp ')' Stmt ELSE Stmt {
     auto ast = new StmtIfAST();
     ast->type = 2;
     ast->exp = unique_ptr<BaseAST>($3);
