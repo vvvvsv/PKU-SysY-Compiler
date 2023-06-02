@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
+#include <cstring>
 #include "visitraw.hpp"
 #include "koopa.h"
 
@@ -89,7 +90,9 @@ void Visit(const koopa_raw_function_t &func) {
 // 访问基本块
 void Visit(const koopa_raw_basic_block_t &bb) {
   // 执行一些其他的必要操作
-  // ...
+  // 当前块的label:
+  if(strncmp(bb->name+1, "entry", 5))
+    std::cout << bb->name+1 << ":" << std::endl;
   // 访问所有指令
   Visit(bb->insts);
 }
@@ -115,6 +118,12 @@ void Visit(const koopa_raw_value_t &value) {
       break;
     case KOOPA_RVT_BINARY:
       Visit(kind.data.binary, value);
+      break;
+    case KOOPA_RVT_BRANCH:
+      Visit(kind.data.branch);
+      break;
+    case KOOPA_RVT_JUMP:
+      Visit(kind.data.jump);
       break;
     case KOOPA_RVT_RETURN:
       // 访问 return 指令
@@ -144,6 +153,7 @@ void Visit(const koopa_raw_integer_t &integer) {
   std::cout << "  li a0, " << integer.value << std::endl;
 }
 
+// 访问 load 指令
 void Visit(const koopa_raw_load_t &load, const koopa_raw_value_t &value) {
   load2reg(load.src, "t0");
   loc[value] = std::to_string(stack_frame_used) + "(sp)";
@@ -224,6 +234,21 @@ void Visit(const koopa_raw_binary_t &binary, const koopa_raw_value_t &value) {
   loc[value] = std::to_string(stack_frame_used) + "(sp)";
   stack_frame_used += 4;
   std::cout << "  sw t0, " << loc[value] << std::endl;
+}
+
+// 访问 branch 指令
+void Visit(const koopa_raw_branch_t &branch) {
+  load2reg(branch.cond, "t0");
+  std::cout << "  bnez t0, DOUBLE_JUMP_" << branch.true_bb->name+1 << std::endl;
+  std::cout << "  j " << branch.false_bb->name+1 << std::endl;
+  std::cout << "DOUBLE_JUMP_" << branch.true_bb->name+1 << ":" << std::endl;
+  std::cout << "  j " << branch.true_bb->name+1 << std::endl;
+}
+
+
+// 访问 jump 指令
+void Visit(const koopa_raw_jump_t &jump) {
+  std::cout << "  j " << jump.target->name+1 << std::endl;
 }
 
 // 访问 return 指令

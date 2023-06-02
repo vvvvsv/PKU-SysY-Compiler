@@ -29,5 +29,11 @@ void Visit(const koopa_raw_store_t &store);
 // 访问 binary 指令
 void Visit(const koopa_raw_binary_t &binary, const koopa_raw_value_t &value);
 
+// 访问 branch 指令
+void Visit(const koopa_raw_branch_t &branch);
+
+// 访问 jump 指令
+void Visit(const koopa_raw_jump_t &jump);
+
 // 访问 return 指令
 void Visit(const koopa_raw_return_t &ret);
