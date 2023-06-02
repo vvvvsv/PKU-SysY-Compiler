@@ -550,24 +550,57 @@ void LAndExpAST::KoopaIR() const {
     eqexp->KoopaIR();
   }
   else if(type==2) {
-    landexp->KoopaIR();
-    int left = koopacnt-1;
-    eqexp->KoopaIR();
-    int right = koopacnt-1;
     // A&&B <==> (A!=0)&(B!=0)
+    landexp->KoopaIR();
     // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
-    std::cout << left << ", 0" << std::endl;
-    left = koopacnt;
+    std::cout << koopacnt-1 << ", 0" << std::endl;
     koopacnt++;
-    // %3 = ne %1, 0
+
+    // 短路求值, 相当于一个if
+    int ifcur = ifcnt;
+    ifcnt++;
+    // @STMTIF_LAND_RESULT_233 = alloc i32
+    std::cout << "  @" << "STMTIF_LAND_RESULT_" << ifcur << " = alloc i32" << std::endl;
+
+    // br %0, %then, %else
+    std::cout << "  br %" << koopacnt-1 << ", %STMTIF_THEN_" << ifcur;
+    std::cout << ", %STMTIF_ELSE_" << ifcur << std::endl;
+
+    // %STMTIF_THEN_233: 创建新的entry
+    std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    // && 左侧 LAndExp 为 1, 答案为 EqExp 的值
+    eqexp->KoopaIR();
+    // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
-    std::cout << right << ", 0" << std::endl;
-    right = koopacnt;
+    std::cout << koopacnt-1 << ", 0" << std::endl;
     koopacnt++;
-    // %4 = and %2, %3
-    std::cout << "  %" << koopacnt << " = and %";
-    std::cout << left << ", %" << right << std::endl;
+    std::cout << "  store %" << koopacnt-1 << ", @";
+    std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
+
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_ELSE_233: 创建新的entry
+    std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    // && 左侧 LAndExp 为 0, 答案为 0
+    std::cout << "  store 0, @";
+    std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
+
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_END_233: 创建新的entry
+    std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    std::cout << "  %" << koopacnt << " = load @";
+    std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
     koopacnt++;
   }
 }
@@ -578,8 +611,9 @@ int LAndExpAST::Calc() const {
   }
   else if(type==2) {
     int left = dynamic_cast<ExpBaseAST*>(landexp.get())->Calc();
+    if(!left) return 0;
     int right = dynamic_cast<ExpBaseAST*>(eqexp.get())->Calc();
-    return left && right;
+    return (right!=0);
   }
   assert(0);
   return 0;
@@ -591,24 +625,57 @@ void LOrExpAST::KoopaIR() const {
     landexp->KoopaIR();
   }
   else if(type==2) {
-    lorexp->KoopaIR();
-    int left = koopacnt-1;
-    landexp->KoopaIR();
-    int right = koopacnt-1;
     // A||B <==> (A!=0)|(B!=0)
+    lorexp->KoopaIR();
     // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
-    std::cout << left << ", 0" << std::endl;
-    left = koopacnt;
+    std::cout << koopacnt-1 << ", 0" << std::endl;
     koopacnt++;
-    // %3 = ne %1, 0
+
+    // 短路求值, 相当于一个if
+    int ifcur = ifcnt;
+    ifcnt++;
+    // @STMTIF_LOR_RESULT_233 = alloc i32
+    std::cout << "  @" << "STMTIF_LOR_RESULT_" << ifcur << " = alloc i32" << std::endl;
+
+    // br %0, %then, %else
+    std::cout << "  br %" << koopacnt-1 << ", %STMTIF_THEN_" << ifcur;
+    std::cout << ", %STMTIF_ELSE_" << ifcur << std::endl;
+
+    // %STMTIF_THEN_233: 创建新的entry
+    std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    // || 左侧 LOrExp 为 1, 答案为 1, 即左侧 LOrExp 的值
+    std::cout << "  store 1, @";
+    std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
+
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_ELSE_233: 创建新的entry
+    std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    // || 左侧 LOrExp 为 0, 答案为 LAndExp 的值
+    landexp->KoopaIR();
+    // %2 = ne %0, 0
     std::cout << "  %" << koopacnt << " = ne %";
-    std::cout << right << ", 0" << std::endl;
-    right = koopacnt;
+    std::cout << koopacnt-1 << ", 0" << std::endl;
     koopacnt++;
-    // %4 = or %2, %3
-    std::cout << "  %" << koopacnt << " = or %";
-    std::cout << left << ", %" << right << std::endl;
+    std::cout << "  store %" << koopacnt-1 << ", @";
+    std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
+
+    if(!entry_returned) {
+      // jump %STMTIF_END_233
+      std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
+    }
+
+    // %STMTIF_END_233: 创建新的entry
+    std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
+    entry_returned = 0;
+    std::cout << "  %" << koopacnt << " = load @";
+    std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
     koopacnt++;
   }
 }
@@ -619,8 +686,9 @@ int LOrExpAST::Calc() const {
   }
   else if(type==2) {
     int left = dynamic_cast<ExpBaseAST*>(lorexp.get())->Calc();
+    if(left) return 1;
     int right = dynamic_cast<ExpBaseAST*>(landexp.get())->Calc();
-    return left || right;
+    return (right!=0);
   }
   assert(0);
   return 0;
