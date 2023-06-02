@@ -112,36 +112,41 @@ void BlockItemAST::KoopaIR() const {
 }
 
 // Stmt ::= LVal "=" Exp ";"
-//        | Exp ";"
+void StmtAssignAST::KoopaIR() const {
+  exp->KoopaIR();
+  // 存入刚刚计算出的值
+  // store %1, @x
+  const std::string& ident = dynamic_cast<LValAST*>(lval.get())->ident;
+  std::cout << "  store %" << koopacnt-1 << ", @";
+  std::cout << query_symbol(ident).first << ident << std::endl;
+}
+
 //        | ";"
-//        | Block
-//        | "return" Exp ";";
-//        | "return" ";";
-void StmtAST::KoopaIR() const {
+//        | Exp ";"
+void StmtExpAST::KoopaIR() const {
   if(type==1) {
-    exp->KoopaIR();
-    // 存入刚刚计算出的值
-    // store %1, @x
-    const std::string& ident = dynamic_cast<LValAST*>(lval1_block4.get())->ident;
-    std::cout << "  store %" << koopacnt-1 << ", @";
-    std::cout << query_symbol(ident).first << ident << std::endl;
+    // do nothing
   }
   else if(type==2) {
     exp->KoopaIR();
   }
-  else if(type==3) {
-    // do nothing
+}
+
+//        | Block
+void StmtBlockAST::KoopaIR() const {
+  block->KoopaIR();
+}
+
+//        | "return" ";";
+//        | "return" Exp ";";
+void StmtReturnAST::KoopaIR() const {
+  if(type==1) {
+    std::cout << "  ret" << std::endl;
   }
-  else if(type==4) {
-    lval1_block4->KoopaIR();
-  }
-  else if(type==5) {
+  else if(type==2) {
     exp->KoopaIR();
     // ret %0
     std::cout << "  ret %" << koopacnt-1 << std::endl;
-  }
-  else if(type==6) {
-    std::cout << "  ret" << std::endl;
   }
 }
 

@@ -125,15 +125,45 @@ class BlockItemAST : public BaseAST {
 };
 
 // Stmt ::= LVal "=" Exp ";"
-//        | Exp ";"
+class StmtAssignAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> lval;
+  std::unique_ptr<BaseAST> exp;
+  void KoopaIR() const override;
+};
+
 //        | ";"
+//        | Exp ";"
+class StmtExpAST : public BaseAST {
+ public:
+   int type;
+  std::unique_ptr<BaseAST> exp;
+  void KoopaIR() const override;
+};
+
+// //        | "if" "(" Exp ")" Stmt
+// //        | "if" "(" Exp ")" Stmt "else" Stmt
+// class StmtIfAST : public BaseAST {
+//  public:
+//    int type;
+//   std::unique_ptr<BaseAST> exp;
+//   std::unique_ptr<BaseAST> stmt_if;
+//   std::unique_ptr<BaseAST> stmt_else;
+//   void KoopaIR() const override;
+// };
+
 //        | Block
-//        | "return" Exp ";";
+class StmtBlockAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> block;
+  void KoopaIR() const override;
+};
+
 //        | "return" ";";
-class StmtAST : public BaseAST {
+//        | "return" Exp ";";
+class StmtReturnAST : public BaseAST {
  public:
   int type;
-  std::unique_ptr<BaseAST> lval1_block4;
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
 };
