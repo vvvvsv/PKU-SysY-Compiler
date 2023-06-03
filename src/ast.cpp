@@ -257,6 +257,20 @@ void StmtWhileAST::KoopaIR() const {
   whilecur = whilepar[whilecur];
 }
 
+//        | "break" ";"
+void StmtBreakAST::KoopaIR() const {
+  // jump %while_end
+  std::cout << "  jump %STMTWHILE_END_" << whilecur << std::endl;
+  entry_end = 1;
+}
+
+//        | "continue" ";"
+void StmtContinueAST::KoopaIR() const {
+  // jump %while_entry
+  std::cout << "  jump %STMTWHILE_ENTRY_" << whilecur << std::endl;
+  entry_end = 1;
+}
+
 //        | "return" ";";
 //        | "return" Exp ";";
 void StmtReturnAST::KoopaIR() const {

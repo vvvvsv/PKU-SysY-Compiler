@@ -175,6 +175,18 @@ class StmtWhileAST : public BaseAST {
   void KoopaIR() const override;
 };
 
+//        | "break" ";"
+class StmtBreakAST : public BaseAST {
+ public:
+  void KoopaIR() const override;
+};
+
+//        | "continue" ";"
+class StmtContinueAST : public BaseAST {
+ public:
+  void KoopaIR() const override;
+};
+
 //        | "return" ";";
 //        | "return" Exp ";";
 class StmtReturnAST : public BaseAST {

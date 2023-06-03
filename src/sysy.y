@@ -34,7 +34,7 @@ using namespace std;
 }
 
 // lexer 返回的所有 token 种类的声明
-%token INT RETURN CONST IF ELSE WHILE
+%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token LAND LOR
 %token <str_val> IDENT RELOP EQOP
 %token <int_val> INT_CONST
@@ -264,6 +264,14 @@ Stmt
     auto ast = new StmtWhileAST();
     ast->exp = unique_ptr<BaseAST>($3);
     ast->stmt = unique_ptr<BaseAST>($5);
+    $$ = ast;
+  }
+  | BREAK ';' {
+    auto ast = new StmtBreakAST();
+    $$ = ast;
+  }
+  | CONTINUE ';' {
+    auto ast = new StmtContinueAST();
     $$ = ast;
   }
   | RETURN Exp ';' {

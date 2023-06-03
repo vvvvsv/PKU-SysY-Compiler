@@ -45,6 +45,8 @@ EqOp          [!=]=
 "if"            { return IF; }
 "else"          { return ELSE; }
 "while"         { return WHILE; }
+"break"         { return BREAK; }
+"continue"      { return CONTINUE; }
 
 {RelOp}         { yylval.str_val = new string(yytext); return RELOP; }
 {EqOp}          { yylval.str_val = new string(yytext); return EQOP; }
