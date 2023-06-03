@@ -5,8 +5,8 @@
 #include "visitraw.hpp"
 #include "koopa.h"
 
-// 类型为 koopa_raw_value 的有返回值的语句的存储位置
-static std::unordered_map<koopa_raw_value_t, std::string> loc;
+// 类型为 koopa_raw_value 的有返回值的语句的相对于 sp 的存储位置
+static std::unordered_map<koopa_raw_value_t, int> loc;
 // 栈帧长度
 static int stack_frame_length = 0;
 // 已经使用的栈帧长度
@@ -80,8 +80,10 @@ void Visit(const koopa_raw_function_t &func) {
   stack_frame_length = (stack_frame_length + 16 - 1) & (~(16 - 1));
   // std::cout<<"++++"<<stack_frame_length<<std::endl;
 
-  if (stack_frame_length != 0)
-    std::cout << "  addi sp, sp, -" << stack_frame_length << std::endl;
+  if (stack_frame_length != 0) {
+    std::cout << "  li t0, " << -stack_frame_length << std::endl;
+    std::cout << "  add sp, sp, t0" << std::endl;
+  }
 
   // 访问所有基本块
   Visit(func->bbs);
@@ -107,7 +109,7 @@ void Visit(const koopa_raw_value_t &value) {
       Visit(kind.data.integer);
       break;
     case KOOPA_RVT_ALLOC:
-      loc[value] = std::to_string(stack_frame_used) + "(sp)";
+      loc[value] = stack_frame_used;
       stack_frame_used += 4;
       break;
     case KOOPA_RVT_LOAD:
@@ -144,8 +146,18 @@ static void load2reg(const koopa_raw_value_t &value, const std::string &reg) {
   }
   else {
     // value->kind.tag = KOOPA_RVT_LOAD, KOOPA_RVT_BINARY 之类的有返回值的语句
-    std::cout << "  lw " << reg << ", " << loc[value] << std::endl;
+    std::cout << "  li t6, " << loc[value] << std::endl;
+    std::cout << "  add t6, t6, sp" << std::endl;
+    std::cout << "  lw " << reg << ", 0(t6)" << std::endl;
   }
+}
+
+// 将标号为 reg 的寄存器中的value的值保存在内存中
+static void save2mem(const koopa_raw_value_t &value, const std::string &reg) {
+  assert(value->kind.tag != KOOPA_RVT_INTEGER);
+  std::cout << "  li t6, " << loc[value] << std::endl;
+  std::cout << "  add t6, t6, sp" << std::endl;
+  std::cout << "  sw " << reg << ", 0(t6)" << std::endl;
 }
 
 // 访问 integer 指令
@@ -156,15 +168,15 @@ void Visit(const koopa_raw_integer_t &integer) {
 // 访问 load 指令
 void Visit(const koopa_raw_load_t &load, const koopa_raw_value_t &value) {
   load2reg(load.src, "t0");
-  loc[value] = std::to_string(stack_frame_used) + "(sp)";
+  loc[value] = stack_frame_used;
   stack_frame_used += 4;
-  std::cout << "  sw t0, " << loc[value] << std::endl;
+  save2mem(value, "t0");
 }
 
 // 访问 store 指令
 void Visit(const koopa_raw_store_t &store) {
   load2reg(store.value, "t0");
-  std::cout << "  sw t0, " << loc[store.dest] << std::endl;
+  save2mem(store.dest, "t0");
 }
 
 // 访问 binary 指令
@@ -231,9 +243,9 @@ void Visit(const koopa_raw_binary_t &binary, const koopa_raw_value_t &value) {
   }
 
   // 将 t0 中的结果存入栈
-  loc[value] = std::to_string(stack_frame_used) + "(sp)";
+  loc[value] = stack_frame_used;
   stack_frame_used += 4;
-  std::cout << "  sw t0, " << loc[value] << std::endl;
+  save2mem(value, "t0");
 }
 
 // 访问 branch 指令
@@ -256,7 +268,9 @@ void Visit(const koopa_raw_return_t &ret) {
   // 访问返回值
   load2reg(ret.value, "a0");
   // 恢复栈帧
-  if (stack_frame_length != 0)
-    std::cout << "  addi sp, sp, " << stack_frame_length << std::endl;
+  if (stack_frame_length != 0) {
+    std::cout << "  li t0, " << stack_frame_length << std::endl;
+    std::cout << "  add sp, sp, t0" << std::endl;
+  }
   std::cout << "  ret" << std::endl;
 }
