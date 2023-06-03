@@ -167,6 +167,14 @@ class StmtIfAST : public BaseAST {
   void KoopaIR() const override;
 };
 
+//        | "while" "(" Exp ")" Stmt
+class StmtWhileAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<BaseAST> stmt;
+  void KoopaIR() const override;
+};
+
 //        | "return" ";";
 //        | "return" Exp ";";
 class StmtReturnAST : public BaseAST {

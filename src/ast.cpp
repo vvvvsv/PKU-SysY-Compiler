@@ -1,13 +1,20 @@
 #include <iostream>
 #include <cassert>
+#include <unordered_map>
 #include "ast.hpp"
 
 // 计数 koopa 语句的返回值 %xxx
 static int koopacnt = 0;
 // 计数 if 语句，用于设置 entry
 static int ifcnt = 0;
-// 当前 entry 是否已经 ret, 若为 1 的话不应再生成任何语句
-static int entry_returned = 0;
+// 计数 while 语句，用于设置 entry
+static int whilecnt = 0;
+// 当前 while 语句的标号
+static int whilecur = 0;
+// 保存 while 树上的 parent 关系
+static std::unordered_map<int, int> whilepar;
+// 当前 entry 是否已经 ret/br/jump, 若为 1 的话不应再生成任何语句
+static int entry_end = 0;
 
 /************************CompUnit*************************/
 
@@ -90,11 +97,11 @@ void FuncDefAST::KoopaIR() const {
 
   std::cout << " {" << std::endl;
   std::cout << "%entry:" << std::endl;
-  entry_returned = 0;
+  entry_end = 0;
   block->KoopaIR();
   // 若函数还未返回, 补一个ret
   // 无返回值补 ret
-  if (!entry_returned) {
+  if (!entry_end) {
     const std::string& type = dynamic_cast<FuncTypeAST*>(func_type.get())->type;
     if (type == "i32")
       std::cout << "  ret 0" << std::endl;
@@ -119,7 +126,7 @@ void BlockAST::KoopaIR() const {
   enter_code_block();
   for(auto& block_item: *block_item_list)
   {
-    if(entry_returned) break;
+    if(entry_end) break;
     block_item->KoopaIR();
   }
   exit_code_block();
@@ -159,7 +166,7 @@ void StmtBlockAST::KoopaIR() const {
 //        | "if" "(" Exp ")" Stmt
 //        | "if" "(" Exp ")" Stmt "else" Stmt
 void StmtIfAST::KoopaIR() const {
-  if(entry_returned) return;
+  if(entry_end) return;
   int ifcur = ifcnt;
   ifcnt++;
   exp->KoopaIR();
@@ -171,16 +178,16 @@ void StmtIfAST::KoopaIR() const {
 
     // %STMTIF_THEN_233: 创建新的entry
     std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     stmt_if->KoopaIR();
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_END_233: 创建新的entry
     std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
   }
   else if(type==2) {
     // br %0, %then, %else
@@ -189,26 +196,65 @@ void StmtIfAST::KoopaIR() const {
 
     // %STMTIF_THEN_233: 创建新的entry
     std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     stmt_if->KoopaIR();
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_ELSE_233: 创建新的entry
     std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     stmt_else->KoopaIR();
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_END_233: 创建新的entry
     std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
   }
+}
+
+//        | "while" "(" Exp ")" Stmt
+void StmtWhileAST::KoopaIR() const {
+  if(entry_end) return;
+  int whileold = whilecur;
+  whilecur = whilecnt;
+  whilecnt++;
+  whilepar[whilecur] = whileold;
+  //   jump %while_entry
+  // %while_entry:
+  //   %cond = Exp
+  //   br %cond, %while_body, %while_end
+  // %while_body:
+  //   Stmt
+  //   jump %while_entry
+  // %while_end:
+
+  // jump %while_entry
+  std::cout << "  jump %STMTWHILE_ENTRY_" << whilecur << std::endl;
+  // %while_entry:
+  std::cout << "%STMTWHILE_ENTRY_" << whilecur << ":" << std::endl;
+  entry_end = 0;
+  exp->KoopaIR();
+  // br %cond, %while_body, %while_end
+  std::cout << "  br %" << koopacnt-1 << ", %STMTWHILE_BODY_" << whilecur;
+  std::cout << ", %STMTWHILE_END_" << whilecur << std::endl;
+  // %while_body:
+  std::cout << "%STMTWHILE_BODY_" << whilecur << ":" << std::endl;
+  entry_end = 0;
+  stmt->KoopaIR();
+  if(!entry_end){
+    // jump %while_entry
+    std::cout << "  jump %STMTWHILE_ENTRY_" << whilecur << std::endl;
+  }
+  // %while_end:
+  std::cout << "%STMTWHILE_END_" << whilecur << ":" << std::endl;
+  entry_end = 0;
+  whilecur = whilepar[whilecur];
 }
 
 //        | "return" ";";
@@ -216,13 +262,13 @@ void StmtIfAST::KoopaIR() const {
 void StmtReturnAST::KoopaIR() const {
   if(type==1) {
     std::cout << "  ret" << std::endl;
-    entry_returned = 1;
+    entry_end = 1;
   }
   else if(type==2) {
     exp->KoopaIR();
     // ret %0
     std::cout << "  ret %" << koopacnt-1 << std::endl;
-    entry_returned = 1;
+    entry_end = 1;
   }
 }
 
@@ -569,7 +615,7 @@ void LAndExpAST::KoopaIR() const {
 
     // %STMTIF_THEN_233: 创建新的entry
     std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     // && 左侧 LAndExp 为 1, 答案为 EqExp 的值
     eqexp->KoopaIR();
     // %2 = ne %0, 0
@@ -579,26 +625,26 @@ void LAndExpAST::KoopaIR() const {
     std::cout << "  store %" << koopacnt-1 << ", @";
     std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
 
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_ELSE_233: 创建新的entry
     std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     // && 左侧 LAndExp 为 0, 答案为 0
     std::cout << "  store 0, @";
     std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
 
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_END_233: 创建新的entry
     std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     std::cout << "  %" << koopacnt << " = load @";
     std::cout << "STMTIF_LAND_RESULT_" << ifcur << std::endl;
     koopacnt++;
@@ -644,19 +690,19 @@ void LOrExpAST::KoopaIR() const {
 
     // %STMTIF_THEN_233: 创建新的entry
     std::cout << "%STMTIF_THEN_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     // || 左侧 LOrExp 为 1, 答案为 1, 即左侧 LOrExp 的值
     std::cout << "  store 1, @";
     std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
 
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_ELSE_233: 创建新的entry
     std::cout << "%STMTIF_ELSE_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     // || 左侧 LOrExp 为 0, 答案为 LAndExp 的值
     landexp->KoopaIR();
     // %2 = ne %0, 0
@@ -666,14 +712,14 @@ void LOrExpAST::KoopaIR() const {
     std::cout << "  store %" << koopacnt-1 << ", @";
     std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
 
-    if(!entry_returned) {
+    if(!entry_end) {
       // jump %STMTIF_END_233
       std::cout << "  jump %STMTIF_END_" << ifcur << std::endl;
     }
 
     // %STMTIF_END_233: 创建新的entry
     std::cout << "%STMTIF_END_" << ifcur << ":" << std::endl;
-    entry_returned = 0;
+    entry_end = 0;
     std::cout << "  %" << koopacnt << " = load @";
     std::cout << "STMTIF_LOR_RESULT_" << ifcur << std::endl;
     koopacnt++;
