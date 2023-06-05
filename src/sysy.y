@@ -36,13 +36,13 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 %token VOID INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token LAND LOR
-%token <str_val> IDENT RELOP EQOP
+%token <str_val> TYPE IDENT RELOP EQOP
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
 %type <ast_val> CompUnitItem
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal VarDecl VarDef InitVal
-%type <ast_val> FuncDef FuncType FuncFParam
+%type <ast_val> Decl ConstDecl ConstDef ConstInitVal VarDecl VarDef InitVal
+%type <ast_val> FuncDef FuncFParam
 %type <ast_val> Block BlockItem Stmt
 %type <ast_val> Exp LVal PrimaryExp UnaryExp FuncExp MulExp AddExp
 %type <ast_val> RelExp EqExp LAndExp LOrExp ConstExp
@@ -78,9 +78,16 @@ CompUnitItemList
   ;
 
 CompUnitItem
-  : FuncDef {
-    auto ast=new CompUnitItemAST();
-    ast->func_def = unique_ptr<BaseAST>($1);
+  : Decl {
+    auto ast = new CompUnitItemAST();
+    ast->type = 1;
+    ast->decl1_funcdef2 = unique_ptr<BaseAST>($1);
+    $$=ast;
+  }
+  | FuncDef {
+    auto ast = new CompUnitItemAST();
+    ast->type = 2;
+    ast->decl1_funcdef2 = unique_ptr<BaseAST>($1);
     $$=ast;
   }
   ;
@@ -101,17 +108,10 @@ Decl
   ;
 
 ConstDecl
-  : CONST BType ConstDefList ';' {
+  : CONST TYPE ConstDefList ';' {
     auto ast = new ConstDeclAST();
-    ast->b_type = unique_ptr<BaseAST>($2);
+    ast->b_type = *unique_ptr<string>($2);
     ast->const_def_list = unique_ptr<vector<unique_ptr<BaseAST> > >($3);
-    $$ = ast;
-  }
-  ;
-
-BType
-  : INT {
-    auto ast = new BTypeAST();
     $$ = ast;
   }
   ;
@@ -147,9 +147,9 @@ ConstInitVal
   ;
 
 VarDecl
-  : BType VarDefList ';' {
+  : TYPE VarDefList ';' {
     auto ast = new VarDeclAST();
-    ast->b_type = unique_ptr<BaseAST>($1);
+    ast->b_type = *unique_ptr<string>($1);
     ast->var_def_list = unique_ptr<vector<unique_ptr<BaseAST> > >($2);
     $$ = ast;
   }
@@ -193,25 +193,12 @@ InitVal
   ;
 
 FuncDef
-  : FuncType IDENT '(' FuncFParams ')' Block {
+  : TYPE IDENT '(' FuncFParams ')' Block {
     auto ast = new FuncDefAST();
-    ast->func_type = unique_ptr<BaseAST>($1);
+    ast->func_type = *unique_ptr<string>($1);
     ast->ident = *unique_ptr<string>($2);
     ast->func_f_param_list = unique_ptr<vector<unique_ptr<BaseAST> > >($4);
     ast->block = unique_ptr<BaseAST>($6);
-    $$ = ast;
-  }
-  ;
-
-FuncType
-  : VOID {
-    auto ast = new FuncTypeAST();
-    ast->type = "void";
-    $$ = ast;
-  }
-  | INT {
-    auto ast = new FuncTypeAST();
-    ast->type = "int";
     $$ = ast;
   }
   ;
@@ -240,9 +227,9 @@ FuncFParamList
   ;
 
 FuncFParam
-  : BType IDENT {
+  : TYPE IDENT {
     auto ast = new FuncFParamAST();
-    ast->b_type = unique_ptr<BaseAST>($1);
+    ast->b_type = *unique_ptr<string>($1);
     ast->ident = *unique_ptr<string>($2);
     $$ = ast;
   }
@@ -270,13 +257,13 @@ BlockItemList
 
 BlockItem
   : Decl {
-    auto ast=new BlockItemAST();
+    auto ast = new BlockItemAST();
     ast->type = 1;
     ast->decl1_stmt2 = unique_ptr<BaseAST>($1);
     $$=ast;
   }
   | Stmt {
-    auto ast=new BlockItemAST();
+    auto ast = new BlockItemAST();
     ast->type = 2;
     ast->decl1_stmt2 = unique_ptr<BaseAST>($1);
     $$=ast;
@@ -353,7 +340,7 @@ Exp
 
 LVal
   : IDENT {
-    auto ast=new LValAST();
+    auto ast = new LValAST();
     ast->ident = *unique_ptr<string>($1);
     $$=ast;
   }
@@ -575,7 +562,7 @@ LOrExp
 
 ConstExp
   : Exp {
-    auto ast=new ConstExpAST();
+    auto ast = new ConstExpAST();
     ast->exp = unique_ptr<BaseAST>($1);
     $$=ast;
   }

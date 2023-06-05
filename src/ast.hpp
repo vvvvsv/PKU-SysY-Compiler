@@ -24,10 +24,11 @@ class CompUnitAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// CompUnitItem ::= FuncDef;
+// CompUnitItem ::= Decl | FuncDef;
 class CompUnitItemAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> func_def;
+  int type;
+  std::unique_ptr<BaseAST> decl1_funcdef2;
   void KoopaIR() const override;
 };
 
@@ -41,20 +42,15 @@ class DeclAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// ConstDecl ::= "const" BType ConstDefList ";";
+// ConstDecl ::= "const" TYPE ConstDefList ";";
 // ConstDefList ::= ConstDef | ConstDefList "," ConstDef;
 class ConstDeclAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> b_type;
+  std::string b_type;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_def_list;
   void KoopaIR() const override;
 };
 
-// BType ::= "int";
-class BTypeAST : public BaseAST {
- public:
-  void KoopaIR() const override;
-};
 
 // ConstDef ::= IDENT "=" ConstInitVal;
 class ConstDefAST : public BaseAST {
@@ -72,11 +68,11 @@ class ConstInitValAST : public BaseAST {
   int Calc() const;
 };
 
-// VarDecl ::= BType VarDefList ";";
+// VarDecl ::= TYPE VarDefList ";";
 // VarDefList ::= VarDef | VarDefList "," VarDef;
 class VarDeclAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> b_type;
+  std::string b_type;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > var_def_list;
   void KoopaIR() const override;
 };
@@ -95,33 +91,27 @@ class InitValAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> exp;
   void KoopaIR() const override;
+  int Calc() const;
 };
 
 /**************************Func***************************/
 
-// FuncDef ::= FuncType IDENT "(" FuncFParams ")" Block;
+// FuncDef ::= TYPE IDENT "(" FuncFParams ")" Block;
 // FuncFParams ::=  | FuncFParamList;
 // FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
 class FuncDefAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> func_type;
+  std::string func_type;
   std::string ident;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > func_f_param_list;
   std::unique_ptr<BaseAST> block;
   void KoopaIR() const override;
 };
 
-// FuncType ::= "void" | "int";
-class FuncTypeAST : public BaseAST {
- public:
-  std::string type;
-  void KoopaIR() const override;
-};
-
-// FuncFParam ::= BType IDENT;
+// FuncFParam ::= TYPE IDENT;
 class FuncFParamAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> b_type;
+  std::string b_type;
   std::string ident;
   void KoopaIR() const override;
   void Alloc() const;

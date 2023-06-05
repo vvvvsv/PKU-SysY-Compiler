@@ -39,8 +39,8 @@ EqOp          [!=]=
 {LineComment}   { /* 忽略, 不做任何操作 */ }
 {BlockComment}  { /* 忽略, 不做任何操作 */ }
 
-"void"          { return VOID; }
-"int"           { return INT; }
+"void"          { yylval.str_val = new string(yytext); return TYPE; }
+"int"           { yylval.str_val = new string(yytext); return TYPE; }
 "return"        { return RETURN; }
 "const"         { return CONST; }
 "if"            { return IF; }

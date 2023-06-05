@@ -15,6 +15,8 @@ static int whilecur = 0;
 static std::unordered_map<int, int> whilepar;
 // 当前 entry 是否已经 ret/br/jump, 若为 1 的话不应再生成任何语句
 static int entry_end = 0;
+// 当前是否在声明全局变量，用于 VarDef::KoopaIR
+static int declaring_global_var = 0;
 
 /************************CompUnit*************************/
 
@@ -42,14 +44,20 @@ void CompUnitAST::KoopaIR() const {
 
   for(auto& comp_unit_item: *comp_unit_item_list) {
     comp_unit_item->KoopaIR();
-    std::cout << std::endl;
   }
   exit_code_block();
 }
 
-// CompUnitItem ::= FuncDef;
+// CompUnitItem ::= Decl | FuncDef;
 void CompUnitItemAST::KoopaIR() const {
-  func_def->KoopaIR();
+  if(type==1) {
+    declaring_global_var = 1;
+    decl1_funcdef2->KoopaIR();
+    declaring_global_var = 0;
+  }
+  else if(type==2) {
+    decl1_funcdef2->KoopaIR();
+  }
 }
 
 /**************************Decl***************************/
@@ -59,17 +67,11 @@ void DeclAST::KoopaIR() const {
   const_decl1_var_decl2->KoopaIR();
 }
 
-// ConstDecl ::= "const" BType ConstDefList ";";
+// ConstDecl ::= "const" TYPE ConstDefList ";";
 // ConstDefList ::= ConstDef | ConstDefList "," ConstDef;
 void ConstDeclAST::KoopaIR() const {
   for(auto& const_def: *const_def_list)
     const_def->KoopaIR();
-}
-
-// BType ::= "int";
-void BTypeAST::KoopaIR() const {
-  assert(0);
-  return;
 }
 
 // ConstDef ::= IDENT "=" ConstInitVal;
@@ -88,7 +90,7 @@ int ConstInitValAST::Calc() const {
   return dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
 }
 
-// VarDecl ::= BType VarDefList ";";
+// VarDecl ::= TYPE VarDefList ";";
 // VarDefList ::= VarDef | VarDefList "," VarDef;
 void VarDeclAST::KoopaIR() const {
   for(auto& var_def : *var_def_list)
@@ -97,17 +99,35 @@ void VarDeclAST::KoopaIR() const {
 
 // VarDef ::= IDENT | IDENT "=" InitVal;
 void VarDefAST::KoopaIR() const {
-  // 先 alloc 一段内存
-  // @x = alloc i32
-  std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
-  insert_symbol(ident, SYM_TYPE_VAR, 0);
+  if(declaring_global_var) { // 全局变量
+    if(type==1) {
+      // global @var = alloc i32, zeroinit
+      std::cout << "global @" << current_code_block() << ident;
+      std::cout << " = alloc i32, zeroinit" << std::endl;
+      insert_symbol(ident, SYM_TYPE_VAR, 0);
+    }
+    else if(type==2) {
+      // global @var = alloc i32, 233
+      std::cout << "global @" << current_code_block() << ident;
+      std::cout << " = alloc i32, ";
+      std::cout << dynamic_cast<InitValAST*>(init_val.get())->Calc() << std::endl;
+      insert_symbol(ident, SYM_TYPE_VAR, 0);
+    }
+    std::cout << std::endl;
+  }
+  else { // 局部变量
+    // 先 alloc 一段内存
+    // @x = alloc i32
+    std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+    insert_symbol(ident, SYM_TYPE_VAR, 0);
 
-  if(type==2) {
-    init_val->KoopaIR();
-    // 存入 InitVal
-    // store %1, @x
-    std::cout << "  store %" << koopacnt-1 << ", @";
-    std::cout << query_symbol(ident).first << ident << std::endl;
+    if(type==2) {
+      init_val->KoopaIR();
+      // 存入 InitVal
+      // store %1, @x
+      std::cout << "  store %" << koopacnt-1 << ", @";
+      std::cout << query_symbol(ident).first << ident << std::endl;
+    }
   }
 }
 
@@ -116,18 +136,21 @@ void InitValAST::KoopaIR() const {
   exp->KoopaIR();
 }
 
+int InitValAST::Calc() const {
+  return dynamic_cast<ExpBaseAST*>(exp.get())->Calc();
+}
+
 /**************************Func***************************/
 
-// FuncDef ::= FuncType IDENT "(" FuncFParams ")" Block;
+// FuncDef ::= TYPE IDENT "(" FuncFParams ")" Block;
 // FuncFParams ::=  | FuncFParamList;
 // FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
 void FuncDefAST::KoopaIR() const {
   // 插入符号
-  const std::string& type = dynamic_cast<FuncTypeAST*>(func_type.get())->type;
-  if (type == "void") {
+  if (func_type == "void") {
     insert_symbol(ident, SYM_TYPE_FUNCVOID, 0);
   }
-  else if (type == "int") {
+  else if (func_type == "int") {
     insert_symbol(ident, SYM_TYPE_FUNCINT, 0);
   }
   enter_code_block();
@@ -142,7 +165,9 @@ void FuncDefAST::KoopaIR() const {
   if(!func_f_param_list->empty())
     std::cout.seekp(-2, std::cout.end);
   std::cout << ")";
-  func_type->KoopaIR();
+  if (func_type == "int") {
+    std::cout << ": i32 ";
+  }
 
   std::cout << " {" << std::endl;
   std::cout << "%entry:" << std::endl;
@@ -159,28 +184,18 @@ void FuncDefAST::KoopaIR() const {
   // 若函数还未返回, 补一个ret
   // 无返回值补 ret
   if (!entry_end) {
-    if (type == "i32")
+    if (func_type == "i32")
       std::cout << "  ret 0" << std::endl;
-    else if (type == "void")
+    else if (func_type == "void")
       std::cout << "  ret" << std::endl;
     else
       assert(0);
   }
-  std::cout << "}" << std::endl;
+  std::cout << "}" << std::endl << std::endl;
   exit_code_block();
 }
 
-// FuncType ::= "void" | "int";
-void FuncTypeAST::KoopaIR() const {
-  if(type == "void") {
-    // do nothing
-  }
-  else if(type == "int") {
-    std::cout << ": i32";
-  }
-}
-
-// FuncFParam ::= BType IDENT;
+// FuncFParam ::= TYPE IDENT;
 void FuncFParamAST::KoopaIR() const {
   std::cout << "@" << ident << ": i32";
 }
