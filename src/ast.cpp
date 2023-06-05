@@ -184,7 +184,7 @@ void FuncDefAST::KoopaIR() const {
   // 若函数还未返回, 补一个ret
   // 无返回值补 ret
   if (!entry_end) {
-    if (func_type == "i32")
+    if (func_type == "int")
       std::cout << "  ret 0" << std::endl;
     else if (func_type == "void")
       std::cout << "  ret" << std::endl;
