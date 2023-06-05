@@ -16,8 +16,16 @@ class BaseAST {
 
 /************************CompUnit*************************/
 
-// CompUnit ::= FuncDef;
+// CompUnit ::= CompUnitItemList;
+// CompUnitItemList ::= CompUnitItem | CompUnitItemList CompUnitItem;
 class CompUnitAST : public BaseAST {
+ public:
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > comp_unit_item_list;
+  void KoopaIR() const override;
+};
+
+// CompUnitItem ::= FuncDef;
+class CompUnitItemAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> func_def;
   void KoopaIR() const override;
@@ -91,20 +99,32 @@ class InitValAST : public BaseAST {
 
 /**************************Func***************************/
 
-// FuncDef ::= FuncType IDENT "(" ")" Block;
+// FuncDef ::= FuncType IDENT "(" FuncFParams ")" Block;
+// FuncFParams ::=  | FuncFParamList;
+// FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
 class FuncDefAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> func_type;
   std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > func_f_param_list;
   std::unique_ptr<BaseAST> block;
   void KoopaIR() const override;
 };
 
-// FuncType ::= "int";
+// FuncType ::= "void" | "int";
 class FuncTypeAST : public BaseAST {
  public:
   std::string type;
   void KoopaIR() const override;
+};
+
+// FuncFParam ::= BType IDENT;
+class FuncFParamAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> b_type;
+  std::string ident;
+  void KoopaIR() const override;
+  void Alloc() const;
 };
 
 /**************************Block***************************/
@@ -229,15 +249,27 @@ class PrimaryExpAST : public ExpBaseAST {
   int Calc() const override;
 };
 
-// UnaryExp ::= PrimaryExp | UnaryOp UnaryExp;
+// UnaryExp ::= PrimaryExp | FuncExp | UnaryOp UnaryExp;
 // UnaryOp ::= "+" | "-" | "!"
 class UnaryExpAST : public ExpBaseAST {
  public:
   int type;
   char unaryop;
-  std::unique_ptr<BaseAST> primaryexp1_unaryexp2;
+  std::unique_ptr<BaseAST> primaryexp1_funcexp2_unaryexp3;
   void KoopaIR() const override;
   int Calc() const override;
+};
+
+// FuncExp ::= IDENT "(" FuncRParams ")";
+// FuncRParams ::=  | FuncRParamList;
+// FuncRParamList ::= Exp | FuncRParamList "," Exp;
+// Func exps cannot be calculated at compile time,
+// so that FuncExpAST doesn't need a Calc() function.
+class FuncExpAST : public BaseAST {
+ public:
+  std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > func_r_param_list;
+  void KoopaIR() const override;
 };
 
 // MulExp ::= UnaryExp | MulExp MulOp UnaryExp;

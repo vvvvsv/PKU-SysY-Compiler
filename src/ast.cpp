@@ -18,8 +18,19 @@ static int entry_end = 0;
 
 /************************CompUnit*************************/
 
-// CompUnit ::= FuncDef
+// CompUnit ::= CompUnitItemList;
+// CompUnitItemList ::= CompUnitItem | CompUnitItemList CompUnitItem;
 void CompUnitAST::KoopaIR() const {
+  enter_code_block();
+  for(auto& comp_unit_item: *comp_unit_item_list) {
+    comp_unit_item->KoopaIR();
+    std::cout << std::endl;
+  }
+  exit_code_block();
+}
+
+// CompUnitItem ::= FuncDef;
+void CompUnitItemAST::KoopaIR() const {
   func_def->KoopaIR();
 }
 
@@ -89,20 +100,47 @@ void InitValAST::KoopaIR() const {
 
 /**************************Func***************************/
 
-// FuncDef ::= FuncType IDENT "(" ")" Block;
+// FuncDef ::= FuncType IDENT "(" FuncFParams ")" Block;
+// FuncFParams ::=  | FuncFParamList;
+// FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
 void FuncDefAST::KoopaIR() const {
-  // fun @main(): i32 {}
-  std::cout << "fun @" << ident << "(): ";
+  // 插入符号
+  const std::string& type = dynamic_cast<FuncTypeAST*>(func_type.get())->type;
+  if (type == "void") {
+    insert_symbol(ident, SYM_TYPE_FUNCVOID, 0);
+  }
+  else if (type == "int") {
+    insert_symbol(ident, SYM_TYPE_FUNCINT, 0);
+  }
+  enter_code_block();
+
+  // fun @func(@x: i32): i32 {}
+  std::cout << "fun @" << ident << "(";
+  for(auto& func_f_param: *func_f_param_list) {
+    func_f_param->KoopaIR();
+    std::cout << ", ";
+  }
+  // 退格擦除最后一个逗号
+  if(!func_f_param_list->empty())
+    std::cout.seekp(-2, std::cout.end);
+  std::cout << ")";
   func_type->KoopaIR();
 
   std::cout << " {" << std::endl;
   std::cout << "%entry:" << std::endl;
   entry_end = 0;
+
+  for(auto& func_f_param: *func_f_param_list) {
+    // 为参数再分配一份内存
+    // @SYM_TABLE_233_x = alloc i32
+    // store @x, @SYM_TABLE_233_x
+    dynamic_cast<FuncFParamAST*>(func_f_param.get())->Alloc();
+  }
+
   block->KoopaIR();
   // 若函数还未返回, 补一个ret
   // 无返回值补 ret
   if (!entry_end) {
-    const std::string& type = dynamic_cast<FuncTypeAST*>(func_type.get())->type;
     if (type == "i32")
       std::cout << "  ret 0" << std::endl;
     else if (type == "void")
@@ -111,11 +149,31 @@ void FuncDefAST::KoopaIR() const {
       assert(0);
   }
   std::cout << "}" << std::endl;
+  exit_code_block();
 }
 
-// FuncType ::= "int";
+// FuncType ::= "void" | "int";
 void FuncTypeAST::KoopaIR() const {
-  std::cout << type;
+  if(type == "void") {
+    // do nothing
+  }
+  else if(type == "int") {
+    std::cout << ": i32";
+  }
+}
+
+// FuncFParam ::= BType IDENT;
+void FuncFParamAST::KoopaIR() const {
+  std::cout << "@" << ident << ": i32";
+}
+
+void FuncFParamAST::Alloc() const {
+  // @SYM_TABLE_233_x = alloc i32
+  std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+  insert_symbol(ident, SYM_TYPE_VAR, 0);
+  // store @x, @SYM_TABLE_233_x
+  std::cout << "  store @" << ident << ", @";
+  std::cout << query_symbol(ident).first << ident << std::endl;
 }
 
 /**************************Block***************************/
@@ -358,14 +416,17 @@ int PrimaryExpAST::Calc() const {
   return 0;
 }
 
-// UnaryExp ::= PrimaryExp | UnaryOp UnaryExp;
+// UnaryExp ::= PrimaryExp | FuncExp | UnaryOp UnaryExp;
 // UnaryOp ::= "+" | "-" | "!"
 void UnaryExpAST::KoopaIR() const {
   if(type==1) {
-    primaryexp1_unaryexp2->KoopaIR();
+    primaryexp1_funcexp2_unaryexp3->KoopaIR();
   }
   else if(type==2) {
-    primaryexp1_unaryexp2->KoopaIR();
+    primaryexp1_funcexp2_unaryexp3->KoopaIR();
+  }
+  else if(type==3) {
+    primaryexp1_funcexp2_unaryexp3->KoopaIR();
     if(unaryop=='-') {
       // %1 = sub 0, %0
       std::cout << "  %" << koopacnt << " = sub 0, %";
@@ -381,12 +442,50 @@ void UnaryExpAST::KoopaIR() const {
   }
 }
 
+// FuncExp ::= IDENT "(" FuncRParams ")";
+// FuncRParams ::=  | FuncRParamList;
+// FuncRParamList ::= Exp | FuncRParamList "," Exp;
+void FuncExpAST::KoopaIR() const {
+  auto func = query_symbol(ident);
+  // 必须为全局符号
+  assert(func.first == "SYM_TABLE_0_");
+  // 必须是函数
+  assert(func.second->type == SYM_TYPE_FUNCVOID || func.second->type == SYM_TYPE_FUNCINT);
+
+  // 计算所有的参数
+  auto vec = new std::vector<int>();
+  for(auto& exp: *func_r_param_list) {
+    exp->KoopaIR();
+    vec->push_back(koopacnt-1);
+  }
+
+  // 如果是 int 函数，把返回值保存下来
+  if(func.second->type == SYM_TYPE_FUNCINT)
+    std::cout << "  %" << koopacnt << " = ";
+  else if(func.second->type == SYM_TYPE_FUNCVOID)
+    std::cout << "  ";
+
+  // call @half(%1, %2)
+  std::cout << "call @" << ident << "(";
+  for(int i: *vec) {
+    std::cout << "%" << i << ", ";
+  }
+
+  // 退格擦除最后一个逗号
+  if(!vec->empty())
+    std::cout.seekp(-2, std::cout.end);
+  std::cout << ")" << std::endl;
+  delete vec;
+  if(func.second->type == SYM_TYPE_FUNCINT)
+    koopacnt++;
+}
+
 int UnaryExpAST::Calc() const {
   if(type==1) {
-    return dynamic_cast<ExpBaseAST*>(primaryexp1_unaryexp2.get())->Calc();
+    return dynamic_cast<ExpBaseAST*>(primaryexp1_funcexp2_unaryexp3.get())->Calc();
   }
-  else if(type==2) {
-    int tmp = dynamic_cast<ExpBaseAST*>(primaryexp1_unaryexp2.get())->Calc();
+  else if(type==3) {
+    int tmp = dynamic_cast<ExpBaseAST*>(primaryexp1_funcexp2_unaryexp3.get())->Calc();
     if(unaryop=='+') {
       return tmp;
     }
@@ -397,6 +496,7 @@ int UnaryExpAST::Calc() const {
       return !tmp;
     }
   }
+  // 如果 type == 2 则不能计算
   assert(0);
   return 0;
 }

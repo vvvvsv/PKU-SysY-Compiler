@@ -29,7 +29,7 @@ void exit_code_block()
   symbol_table_stack.pop_back();
 }
 
-// 返回当前作用域的标号, 格式形如 "SYM_TABLE_233"
+// 返回当前作用域的标号, 格式形如 "SYM_TABLE_233_"
 std::string current_code_block()
 {
   return "SYM_TABLE_" + std::to_string(symbol_table_stack.back().first) + "_";
