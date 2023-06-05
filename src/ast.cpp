@@ -22,6 +22,24 @@ static int entry_end = 0;
 // CompUnitItemList ::= CompUnitItem | CompUnitItemList CompUnitItem;
 void CompUnitAST::KoopaIR() const {
   enter_code_block();
+  // 声明库函数
+  std::cout << "decl @getint(): i32\n" \
+               "decl @getch(): i32\n" \
+               "decl @getarray(*i32): i32\n" \
+               "decl @putint(i32)\n" \
+               "decl @putch(i32)\n" \
+               "decl @putarray(i32, *i32)\n" \
+               "decl @starttime()\n" \
+               "decl @stoptime()\n" << std::endl;
+  insert_symbol("getint", SYM_TYPE_FUNCINT, 0);
+  insert_symbol("getch", SYM_TYPE_FUNCINT, 0);
+  insert_symbol("getarray", SYM_TYPE_FUNCINT, 0);
+  insert_symbol("putint", SYM_TYPE_FUNCVOID, 0);
+  insert_symbol("putch", SYM_TYPE_FUNCVOID, 0);
+  insert_symbol("putarray", SYM_TYPE_FUNCVOID, 0);
+  insert_symbol("starttime", SYM_TYPE_FUNCVOID, 0);
+  insert_symbol("stoptime", SYM_TYPE_FUNCVOID, 0);
+
   for(auto& comp_unit_item: *comp_unit_item_list) {
     comp_unit_item->KoopaIR();
     std::cout << std::endl;
