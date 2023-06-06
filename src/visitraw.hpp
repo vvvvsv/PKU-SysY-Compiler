@@ -20,6 +20,9 @@ void Visit(const koopa_raw_value_t &value);
 // 访问 integer 指令
 void Visit(const koopa_raw_integer_t &integer);
 
+// 访问 global alloc 指令
+void Visit(const koopa_raw_global_alloc_t &global_alloc, const koopa_raw_value_t &value);
+
 // 访问 load 指令
 void Visit(const koopa_raw_load_t &load, const koopa_raw_value_t &value);
 

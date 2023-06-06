@@ -135,25 +135,36 @@ void Visit(const koopa_raw_value_t &value) {
       Visit(kind.data.integer);
       break;
     case KOOPA_RVT_ALLOC:
+      // 访问 alloc 指令
       loc[value] = stack_frame_used;
       stack_frame_used += 4;
       break;
+    case KOOPA_RVT_GLOBAL_ALLOC:
+      // 访问 global alloc 指令
+      Visit(value->kind.data.global_alloc, value);
+      break;
     case KOOPA_RVT_LOAD:
+      // 访问 load 指令
       Visit(kind.data.load, value);
       break;
     case KOOPA_RVT_STORE:
+      // 访问 store 指令
       Visit(kind.data.store);
       break;
     case KOOPA_RVT_BINARY:
+      // 访问 binary 指令
       Visit(kind.data.binary, value);
       break;
     case KOOPA_RVT_BRANCH:
+      // 访问 branch 指令
       Visit(kind.data.branch);
       break;
     case KOOPA_RVT_JUMP:
+      // 访问 jump 指令
       Visit(kind.data.jump);
       break;
     case KOOPA_RVT_CALL:
+      // 访问 call 指令
       Visit(kind.data.call, value);
       break;
     case KOOPA_RVT_RETURN:
@@ -185,6 +196,12 @@ static void load2reg(const koopa_raw_value_t &value, const std::string &reg) {
       std::cout << "  lw " << reg << ", 0(t6)" << std::endl;
     }
   }
+  else if (value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
+      // la t6, var
+      std::cout << "  la t6, " << value->name+1 << std::endl;
+      // lw t0, 0(t6)
+      std::cout << "  lw " << reg << ", 0(t6)" << std::endl;
+  }
   else {
     // value->kind.tag = KOOPA_RVT_LOAD, KOOPA_RVT_BINARY 之类的有返回值的语句
     std::cout << "  li t6, " << loc[value] << std::endl;
@@ -196,15 +213,40 @@ static void load2reg(const koopa_raw_value_t &value, const std::string &reg) {
 // 将标号为 reg 的寄存器中的value的值保存在内存中
 static void save2mem(const koopa_raw_value_t &value, const std::string &reg) {
   assert(value->kind.tag != KOOPA_RVT_INTEGER);
-  std::cout << "  li t6, " << loc[value] << std::endl;
-  std::cout << "  add t6, t6, sp" << std::endl;
-  std::cout << "  sw " << reg << ", 0(t6)" << std::endl;
+  if (value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
+    // la t6, var
+    std::cout << "  la t6, " << value->name+1 << std::endl;
+    // sw t0, 0(t6)
+    std::cout << "  sw " << reg << ", 0(t6)" << std::endl;
+  }
+  else {
+    std::cout << "  li t6, " << loc[value] << std::endl;
+    std::cout << "  add t6, t6, sp" << std::endl;
+    std::cout << "  sw " << reg << ", 0(t6)" << std::endl;
+  }
 }
 
 // 访问 integer 指令
 void Visit(const koopa_raw_integer_t &integer) {
   std::cout << "  li a0, " << integer.value << std::endl;
 }
+
+// 访问 global alloc 指令
+void Visit(const koopa_raw_global_alloc_t &global_alloc, const koopa_raw_value_t &value) {
+  std::cout << "  .data" << std::endl;
+  std::cout << "  .globl " << value->name+1 << std::endl;
+  std::cout << value->name+1 << ":" << std::endl;
+  if (global_alloc.init->kind.tag == KOOPA_RVT_ZERO_INIT) {
+    // 初始化为 0
+    std::cout << "  .zero 4" << std::endl;
+  }
+  else if (global_alloc.init->kind.tag == KOOPA_RVT_INTEGER) {
+    // 初始化为 int
+    std::cout << "  .word " << global_alloc.init->kind.data.integer.value << std::endl;
+  }
+  std::cout << std::endl;
+}
+
 
 // 访问 load 指令
 void Visit(const koopa_raw_load_t &load, const koopa_raw_value_t &value) {
