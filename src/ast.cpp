@@ -42,6 +42,7 @@ void CompUnitAST::KoopaIR() const {
   insert_symbol("starttime", SYM_TYPE_FUNCVOID, 0);
   insert_symbol("stoptime", SYM_TYPE_FUNCVOID, 0);
 
+  // 访问所有 CompUnitItem
   for(auto& comp_unit_item: *comp_unit_item_list) {
     comp_unit_item->KoopaIR();
   }

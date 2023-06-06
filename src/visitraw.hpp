@@ -35,5 +35,8 @@ void Visit(const koopa_raw_branch_t &branch);
 // 访问 jump 指令
 void Visit(const koopa_raw_jump_t &jump);
 
+// 访问 call 指令
+void Visit(const koopa_raw_call_t &call, const koopa_raw_value_t &value);
+
 // 访问 return 指令
 void Visit(const koopa_raw_return_t &ret);
