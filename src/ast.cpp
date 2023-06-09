@@ -1,13 +1,14 @@
 #include <iostream>
 #include <cassert>
 #include <unordered_map>
+#include <algorithm>
 #include "ast.hpp"
 
 // 计数 koopa 语句的返回值 %xxx
 static int koopacnt = 0;
-// 计数 if 语句，用于设置 entry
+// 计数 if 语句, 用于设置 entry
 static int ifcnt = 0;
-// 计数 while 语句，用于设置 entry
+// 计数 while 语句, 用于设置 entry
 static int whilecnt = 0;
 // 当前 while 语句的标号
 static int whilecur = 0;
@@ -15,7 +16,7 @@ static int whilecur = 0;
 static std::unordered_map<int, int> whilepar;
 // 当前 entry 是否已经 ret/br/jump, 若为 1 的话不应再生成任何语句
 static int entry_end = 0;
-// 当前是否在声明全局变量，用于 VarDef::KoopaIR
+// 当前是否在声明全局变量
 static int declaring_global_var = 0;
 
 /************************CompUnit*************************/
@@ -75,20 +76,162 @@ void ConstDeclAST::KoopaIR() const {
     const_def->KoopaIR();
 }
 
-// ConstDef ::= IDENT "=" ConstInitVal;
-void ConstDefAST::KoopaIR() const {
-  insert_symbol(ident, SYM_TYPE_CONST,
-    dynamic_cast<ConstInitValAST*>(const_init_val.get())->Calc());
+// 打印一个 Aggregate
+// mode == 'A' 为 Aggregate 模式, 如 {{1, 2}, {3, 4}} 等
+// mode == 'S' 为 Store 模式, 每个元素分别 store
+// mode == 'K' 为 KoopaIR Symbol 模式, 与 Store 模式类似, 但 agg 中都为 KoopaIR Symbol 编号 (%233)
+static void print_aggregate(const std::string& ident, std::vector<int>* agg, int pos,
+  std::vector<int>* len, std::vector<int>* mul_len, int cur, char mode) {
+  // std::cout <<"--" << pos << std::endl;
+  if (mode == 'A') {
+    if(cur == len->size())
+      std::cout << (*agg)[pos];
+    else {
+      std::cout << "{";
+      int size = (*mul_len)[cur];
+      size /= (*len)[cur];
+      for (int i=0; i < (*len)[cur] ;i++) {
+        print_aggregate(ident, agg, pos + i*size, len, mul_len, cur+1, mode);
+        if(i != (*len)[cur]-1)
+          std::cout << ", ";
+      }
+      std::cout << "}";
+    }
+  }
+  else if (mode == 'S' || mode == 'K') {
+    if(cur == len->size()) {
+      if (mode == 'S')
+        std::cout << "  store " << (*agg)[pos] << ", %" << koopacnt-1 << std::endl;
+      else if (mode == 'K') {
+        int tmp = (*agg)[pos];
+        if (tmp == -1) // KoopaIR Symbol 编号为 -1 表示是后补的 0, 这样能省几条指令
+          std::cout << "  store " << 0 << ", %" << koopacnt-1 << std::endl;
+        else
+          std::cout << "  store %" << tmp << ", %" << koopacnt-1 << std::endl;
+      }
+    }
+    else {
+      int size = (*mul_len)[cur];
+      size /= (*len)[cur];
+      int parent_ptr = koopacnt-1;
+      for (int i=0; i < (*len)[cur] ;i++) {
+        std::cout << "  %" << koopacnt << " = getelemptr ";
+        if (cur == 0)
+          std::cout << "@" << query_symbol(ident).first << ident;
+        else
+          std::cout << "%" << parent_ptr;
+        std::cout << ", " << i << std::endl;
+        koopacnt++;
+        print_aggregate(ident, agg, pos + i*size, len, mul_len, cur+1, mode);
+      }
+    }
+  }
 }
 
-// ConstInitVal ::= ConstExp;
+// ConstDef ::= IDENT ConstIndexList "=" ConstInitVal;
+// ConstIndexList ::=  | ConstIndexList "[" ConstExp "]";
+void ConstDefAST::KoopaIR() const {
+  if (const_index_list->empty()) {
+    // 单常量
+    insert_symbol(ident, SYM_TYPE_CONST,
+      dynamic_cast<ConstInitValAST*>(const_init_val.get())->Calc());
+  }
+  else {
+    // 常量数组
+    insert_symbol(ident, SYM_TYPE_CONSTARRAY, 0);
+
+    // int arr[2][3] -> global @arr = alloc [[i32, 3], 2], {{1, 1, 4}, {5, 1, 4}}
+    //                | @arr = alloc [[i32, 3], 2] \n 之后是store初始化
+    if (declaring_global_var)
+      std::cout << "global ";
+    else
+      std::cout << "  ";
+
+    // @arr = alloc [[i32, 3], 2]
+    std::cout << "@" << query_symbol(ident).first << ident << " = alloc";
+    for (int i = 0; i < const_index_list->size(); i++) {
+      std::cout << "[";
+    }
+    std::cout << "i32, ";
+
+    // arr[2][3][4] -> len = {2, 3, 4}, mul_len = {4*3*2, 4*3, 4}
+    auto mul_len = new std::vector<int>();
+    auto len = new std::vector<int>();
+    for (int i = const_index_list->size() - 1; i >= 0; i--) {
+      const auto& const_exp = (*const_index_list)[i];
+      int tmp = dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
+      len->push_back(tmp);
+      if(mul_len->empty())
+        mul_len->push_back(tmp);
+      else
+        mul_len->push_back(mul_len->back() * tmp);
+      std::cout << tmp << "], ";
+    }
+    std::cout.seekp(-2, std::cout.end);
+    // 现在 mul_len = {4, 4*3, 4*3*2}, 需要 reverse 一下
+    std::reverse(mul_len->begin(), mul_len->end());
+    // 现在 len = {4, 3, 2}, 需要 reverse 一下
+    std::reverse(len->begin(), len->end());
+
+    // 初始化部分
+    std::vector<int> agg = dynamic_cast<ConstInitValAST*>
+      (const_init_val.get())->Aggregate(mul_len->begin(), mul_len->end());
+
+    if (declaring_global_var) {
+      // 全局常量数组, 用 aggregate 初始化
+      std::cout << ", ";
+      print_aggregate(ident, &agg, 0, len, mul_len, 0, 'A');
+      std::cout << std::endl;
+    }
+    else {
+      // 局部常量数组, 用store指令初始化
+      std::cout << std::endl;
+      print_aggregate(ident, &agg, 0, len, mul_len, 0, 'S');
+    }
+    delete mul_len;
+    delete len;
+  }
+}
+
+// ConstInitVal ::= ConstExp | ConstArrayInitVal;
+// ConstArrayInitVal ::= "{" "}" | "{" ConstInitValList "}";
+// ConstInitValList ::= ConstInitVal | ConstInitValList "," ConstInitVal;
 void ConstInitValAST::KoopaIR() const {
   assert(0);
   return;
 }
 
 int ConstInitValAST::Calc() const {
+  assert(type == 1);
   return dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
+}
+
+std::vector<int> ConstInitValAST::Aggregate(std::vector<int>::iterator mul_len_begin,
+  std::vector<int>::iterator mul_len_end) const {
+  std::vector<int> agg;
+  for(auto& const_init_val : *const_init_val_list) {
+    auto child = dynamic_cast<ConstInitValAST*>(const_init_val.get());
+    if (child->type == 1) {
+      agg.push_back(child->Calc());
+    }
+    else if (child->type == 2) {
+      int flag = 0;
+      auto it = mul_len_begin;
+      ++it;
+      for (; it !=  mul_len_end; ++it) {
+        if (agg.size() % (*it) == 0) {
+          auto child_agg = child->Aggregate(it, mul_len_end);
+          agg.insert(agg.end(), child_agg.begin(), child_agg.end());
+          flag = 1;
+          break;
+        }
+      }
+      if (!flag)
+        assert(0);
+    }
+  }
+  agg.insert(agg.end(), (*mul_len_begin) - agg.size(), 0);
+  return agg;
 }
 
 // VarDecl ::= TYPE VarDefList ";";
@@ -98,47 +241,175 @@ void VarDeclAST::KoopaIR() const {
     var_def->KoopaIR();
 }
 
-// VarDef ::= IDENT | IDENT "=" InitVal;
+// VarDef ::= IDENT ConstIndexList | IDENT ConstIndexList "=" InitVal;
+// ConstIndexList ::=  | ConstIndexList "[" ConstExp "]";
 void VarDefAST::KoopaIR() const {
-  if(declaring_global_var) { // 全局变量
-    if(type==1) {
-      // global @var = alloc i32, zeroinit
-      std::cout << "global @" << current_code_block() << ident;
-      std::cout << " = alloc i32, zeroinit" << std::endl;
-      insert_symbol(ident, SYM_TYPE_VAR, 0);
-    }
-    else if(type==2) {
-      // global @var = alloc i32, 233
-      std::cout << "global @" << current_code_block() << ident;
-      std::cout << " = alloc i32, ";
-      std::cout << dynamic_cast<InitValAST*>(init_val.get())->Calc() << std::endl;
-      insert_symbol(ident, SYM_TYPE_VAR, 0);
-    }
-    std::cout << std::endl;
-  }
-  else { // 局部变量
-    // 先 alloc 一段内存
-    // @x = alloc i32
-    std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+  if(const_index_list->empty()) {
+    // 单变量
     insert_symbol(ident, SYM_TYPE_VAR, 0);
-
-    if(type==2) {
-      init_val->KoopaIR();
-      // 存入 InitVal
-      // store %1, @x
-      std::cout << "  store %" << koopacnt-1 << ", @";
-      std::cout << query_symbol(ident).first << ident << std::endl;
+    if(declaring_global_var) { // 全局变量
+      if(type==1) {
+        // global @var = alloc i32, zeroinit
+        std::cout << "global @" << current_code_block() << ident;
+        std::cout << " = alloc i32, zeroinit" << std::endl;
+      }
+      else if(type==2) {
+        // global @var = alloc i32, 233
+        std::cout << "global @" << current_code_block() << ident;
+        std::cout << " = alloc i32, ";
+        std::cout << dynamic_cast<InitValAST*>(init_val.get())->Calc() << std::endl;
+      }
+      std::cout << std::endl;
     }
+    else { // 局部变量
+      // 先 alloc 一段内存
+      // @x = alloc i32
+      std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+
+      if(type==2) {
+        init_val->KoopaIR();
+        // 存入 InitVal
+        // store %1, @x
+        std::cout << "  store %" << koopacnt-1 << ", @";
+        std::cout << query_symbol(ident).first << ident << std::endl;
+      }
+    }
+  }
+  else {
+    // 变量数组
+    insert_symbol(ident, SYM_TYPE_ARRAY, 0);
+    // int arr[2][3] -> global @arr = alloc [[i32, 3], 2]
+    //                | @arr = alloc [[i32, 3], 2]
+    if (declaring_global_var)
+      std::cout << "global ";
+    else
+      std::cout << "  ";
+
+    // @arr = alloc [[i32, 3], 2]
+    std::cout << "@" << query_symbol(ident).first << ident << " = alloc";
+    for (int i = 0; i < const_index_list->size(); i++) {
+      std::cout << "[";
+    }
+    std::cout << "i32, ";
+
+    // arr[2][3][4] -> len = {2, 3, 4}, mul_len = {4*3*2, 4*3, 4}
+    auto mul_len = new std::vector<int>();
+    auto len = new std::vector<int>();
+    for (int i = const_index_list->size() - 1; i >= 0; i--) {
+      const auto& const_exp = (*const_index_list)[i];
+      int tmp = dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
+      len->push_back(tmp);
+      if(mul_len->empty())
+        mul_len->push_back(tmp);
+      else
+        mul_len->push_back(mul_len->back() * tmp);
+      std::cout << tmp << "], ";
+    }
+    std::cout.seekp(-2, std::cout.end);
+    // 现在 mul_len = {4, 4*3, 4*3*2}, 需要 reverse 一下
+    std::reverse(mul_len->begin(), mul_len->end());
+    // 现在 len = {4, 3, 2}, 需要 reverse 一下
+    std::reverse(len->begin(), len->end());
+
+    // 初始化部分
+    if (declaring_global_var) {
+      if (type == 1)
+        std::cout << ", zeroinit" << std::endl;
+      else if (type==2) {
+        std::vector<int> agg = dynamic_cast<InitValAST*>
+          (init_val.get())->Aggregate(mul_len->begin(), mul_len->end());
+        std::cout << ", ";
+        print_aggregate(ident, &agg, 0, len, mul_len, 0, 'A');
+        std::cout << std::endl;
+      }
+    }
+    else {
+      if (type==1) {
+        std::cout << std::endl;
+      }
+      else if (type==2) {
+        std::cout << std::endl;
+        std::vector<int> agg = dynamic_cast<InitValAST*>
+          (init_val.get())->Aggregate(mul_len->begin(), mul_len->end());
+        print_aggregate(ident, &agg, 0, len, mul_len, 0, 'K');
+      }
+    }
+    delete mul_len;
+    delete len;
   }
 }
 
-// InitVal ::= Exp;
+// InitVal ::= Exp | ArrayInitVal;
+// ArrayInitVal ::= "{" "}" | "{" InitValList "}";
+// InitValList ::= InitVal | InitValList "," InitVal;
 void InitValAST::KoopaIR() const {
+  assert(type == 1);
   exp->KoopaIR();
 }
 
 int InitValAST::Calc() const {
+  assert(type == 1);
   return dynamic_cast<ExpBaseAST*>(exp.get())->Calc();
+}
+
+std::vector<int> InitValAST::Aggregate(std::vector<int>::iterator mul_len_begin,
+  std::vector<int>::iterator mul_len_end) const {
+  if(declaring_global_var) {
+    // 全局数组变量的初始化列表中只能出现常量表达式, 返回的 agg 即为各项的值
+    std::vector<int> agg;
+    for(auto& init_val : *init_val_list) {
+      auto child = dynamic_cast<InitValAST*>(init_val.get());
+      if (child->type == 1) {
+        agg.push_back(child->Calc());
+      }
+      else if (child->type == 2) {
+        int flag = 0;
+        auto it = mul_len_begin;
+        ++it;
+        for (; it !=  mul_len_end; ++it) {
+          if (agg.size() % (*it) == 0) {
+            auto child_agg = child->Aggregate(it, mul_len_end);
+            agg.insert(agg.end(), child_agg.begin(), child_agg.end());
+            flag = 1;
+            break;
+          }
+        }
+        if (!flag)
+          assert(0);
+      }
+    }
+    agg.insert(agg.end(), (*mul_len_begin) - agg.size(), 0);
+    return agg;
+  }
+  else {
+    // 局部数组变量的初始化列表中可以出现任何表达式, 返回的 agg 为各项的 KoopaIR Symbol 编号
+    // 若编号为 -1, 则对应的值为 0
+    std::vector<int> agg;
+    for(auto& init_val : *init_val_list) {
+      auto child = dynamic_cast<InitValAST*>(init_val.get());
+      if (child->type == 1) {
+        child->KoopaIR();
+        agg.push_back(koopacnt-1);
+      }
+      else if (child->type == 2) {
+        int flag = 0;
+        auto it = mul_len_begin;
+        ++it;
+        for (; it !=  mul_len_end; ++it) {
+          if (agg.size() % (*it) == 0) {
+            auto child_agg = child->Aggregate(it, mul_len_end);
+            agg.insert(agg.end(), child_agg.begin(), child_agg.end());
+            flag = 1;
+            break;
+          }
+        }
+        if (!flag)
+          assert(0);
+      }
+    }
+    agg.insert(agg.end(), (*mul_len_begin) - agg.size(), -1);
+    return agg;
+  }
 }
 
 /**************************Func***************************/
@@ -232,11 +503,35 @@ void BlockItemAST::KoopaIR() const {
 // Stmt ::= LVal "=" Exp ";"
 void StmtAssignAST::KoopaIR() const {
   exp->KoopaIR();
+  int exp_koopacnt = koopacnt-1;
+  auto lvalptr = dynamic_cast<LValAST*>(lval.get());
+
   // 存入刚刚计算出的值
-  // store %1, @x
-  const std::string& ident = dynamic_cast<LValAST*>(lval.get())->ident;
-  std::cout << "  store %" << koopacnt-1 << ", @";
-  std::cout << query_symbol(ident).first << ident << std::endl;
+  if (lvalptr->index_list->size() == 0) {
+    // LVal 为一个变量
+    // store %1, @x
+    std::cout << "  store %" << exp_koopacnt << ", @";
+    std::cout << query_symbol(lvalptr->ident).first << lvalptr->ident << std::endl;
+  }
+  else {
+    // LVal 为一个数组项
+    // 依次 getelemptr
+    for (int i = 0; i < lvalptr->index_list->size(); i++) {
+      int lastptr_koopacnt = koopacnt-1;
+      const auto& exp_index = (*(lvalptr->index_list))[i];
+      dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+      int exp_index_koopacnt = koopacnt-1;
+
+      std::cout << "  %" << koopacnt << " = getelemptr ";
+      if (i == 0)
+        std::cout << "@" << query_symbol(lvalptr->ident).first << lvalptr->ident;
+      else
+        std::cout << "%" << lastptr_koopacnt;
+      std::cout << ", %" << exp_index_koopacnt << std::endl;
+      koopacnt++;
+    }
+    std::cout << "  store %" << exp_koopacnt << ", %" << koopacnt-1 << std::endl;
+  }
 }
 
 //        | ";"
@@ -389,32 +684,54 @@ int ExpAST::Calc() const {
   return dynamic_cast<ExpBaseAST*>(lorexp.get())->Calc();
 }
 
-// LVal ::= IDENT;
+// LVal ::= IDENT IndexList;
+// IndexList ::=  | IndexList "[" Exp "]";
 // 只有 LVal 出现在表达式中时会调用该 KoopaIR
-// 如果 LVal 作为左值出现，则在父节点读取其 ident
+// 如果 LVal 作为左值出现, 则在父节点 StmtAssign 读取其信息
 void LValAST::KoopaIR() const {
   auto val = query_symbol(ident);
   assert(val.second->type != SYM_TYPE_UND);
 
-  if(val.second->type == SYM_TYPE_CONST)
-  {
+  if(val.second->type == SYM_TYPE_CONST) {
+    assert(index_list->size() == 0);
     // 此处有优化空间
     // %0 = add 0, 233
     std::cout << "  %" << koopacnt << " = add 0, ";
     std::cout<< val.second->value << std::endl;
     koopacnt++;
   }
-  else if(val.second->type == SYM_TYPE_VAR)
-  {
+  else if(val.second->type == SYM_TYPE_VAR) {
+    assert(index_list->size() == 0);
     // 从内存读取 LVal
     // %0 = load @x
     std::cout << "  %" << koopacnt << " = load @" << val.first << ident << std::endl;
+    koopacnt++;
+  }
+  else if(val.second->type == SYM_TYPE_CONSTARRAY || val.second->type == SYM_TYPE_ARRAY) {
+    assert(index_list->size() != 0);
+    // 数组项, 依次 getelemptr
+    for (int i = 0; i < index_list->size(); i++) {
+      int lastptr_koopacnt = koopacnt-1;
+      const auto& exp_index = (*index_list)[i];
+      dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+      int exp_index_koopacnt = koopacnt-1;
+
+      std::cout << "  %" << koopacnt << " = getelemptr ";
+      if (i == 0)
+        std::cout << "@" << query_symbol(ident).first << ident;
+      else
+        std::cout << "%" << lastptr_koopacnt;
+      std::cout << ", %" << exp_index_koopacnt << std::endl;
+      koopacnt++;
+    }
+    std::cout << "  %" << koopacnt << " = load %" << koopacnt-1 << std::endl;
     koopacnt++;
   }
   return;
 }
 
 int LValAST::Calc() const {
+  std::cerr<<ident<<std::endl;
   auto val = query_symbol(ident);
   assert(val.second->type == SYM_TYPE_CONST);
   return val.second->value;
@@ -493,7 +810,7 @@ void FuncExpAST::KoopaIR() const {
     vec->push_back(koopacnt-1);
   }
 
-  // 如果是 int 函数，把返回值保存下来
+  // 如果是 int 函数, 把返回值保存下来
   if(func.second->type == SYM_TYPE_FUNCINT)
     std::cout << "  %" << koopacnt << " = ";
   else if(func.second->type == SYM_TYPE_FUNCVOID)

@@ -52,20 +52,30 @@ class ConstDeclAST : public BaseAST {
 };
 
 
-// ConstDef ::= IDENT "=" ConstInitVal;
+// ConstDef ::= IDENT ConstIndexList "=" ConstInitVal;
+// ConstIndexList ::=  | ConstIndexList "[" ConstExp "]";
 class ConstDefAST : public BaseAST {
  public:
   std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_index_list;
   std::unique_ptr<BaseAST> const_init_val;
   void KoopaIR() const override;
 };
 
-// ConstInitVal ::= ConstExp;
+// ConstInitVal ::= ConstExp | ConstArrayInitVal;
+// ConstArrayInitVal ::= "{" "}" | "{" ConstInitValList "}";
+// ConstInitValList ::= ConstInitVal | ConstInitValList "," ConstInitVal;
 class ConstInitValAST : public BaseAST {
  public:
+  int type;
   std::unique_ptr<BaseAST> const_exp;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_init_val_list;
   void KoopaIR() const override;
   int Calc() const;
+  // 计算并补全初始化列表
+  // 常量初始化列表中只能出现常量表达式, 返回的 vector<int> 中即为补足 0 的各项的值
+  std::vector<int> Aggregate(std::vector<int>::iterator len_begin,
+    std::vector<int>::iterator len_end) const;
 };
 
 // VarDecl ::= TYPE VarDefList ";";
@@ -77,21 +87,35 @@ class VarDeclAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// VarDef ::= IDENT | IDENT "=" InitVal;
+// VarDef ::= IDENT ConstIndexList | IDENT ConstIndexList "=" InitVal;
+// ConstIndexList ::=  | ConstIndexList "[" ConstExp "]";
 class VarDefAST : public BaseAST {
  public:
   int type;
   std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_index_list;
   std::unique_ptr<BaseAST> init_val;
   void KoopaIR() const override;
 };
 
-// InitVal ::= Exp;
+// InitVal ::= Exp | ArrayInitVal;
+// ArrayInitVal ::= "{" "}" | "{" InitValList "}";
+// InitValList ::= InitVal | InitValList "," InitVal;
 class InitValAST : public BaseAST {
  public:
+  int type;
   std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > init_val_list;
   void KoopaIR() const override;
   int Calc() const;
+  // 计算并补全初始化列表
+  // 全局数组变量的初始化列表中只能出现常量表达式,
+  // 返回的 vector<int> 中即为补足 0 的各项的值.
+  // 局部数组变量的初始化列表中可以出现任何表达式,
+  // 返回的 vector<int> 为各项的 KoopaIR Symbol 编号.
+  // 若编号为 -1, 则对应的值为 0.
+  std::vector<int> Aggregate(std::vector<int>::iterator len_begin,
+    std::vector<int>::iterator len_end) const;
 };
 
 /**************************Func***************************/
@@ -221,10 +245,12 @@ class ExpAST : public ExpBaseAST {
   int Calc() const override;
 };
 
-// LVal ::= IDENT;
+// LVal ::= IDENT IndexList;
+// IndexList ::=  | IndexList "[" Exp "]";
 class LValAST : public ExpBaseAST {
  public:
   std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > index_list;
   void KoopaIR() const override;
   int Calc() const override;
 };
