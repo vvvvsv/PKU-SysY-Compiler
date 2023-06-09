@@ -5,13 +5,13 @@
 // 符号表中符号的类型
 enum symbol_type
 {
-  SYM_TYPE_CONST,       // 常量
-  SYM_TYPE_VAR,         // 变量
-  SYM_TYPE_FUNCVOID,    // void 函数
-  SYM_TYPE_FUNCINT,     // int 函数
-  SYM_TYPE_CONSTARRAY,  // 常量数组
-  SYM_TYPE_ARRAY,       // 变量数组
-  SYM_TYPE_UND          // 符号不存在
+  SYM_TYPE_CONST,       // 常量         value = 其值
+  SYM_TYPE_VAR,         // 变量         value = 0
+  SYM_TYPE_FUNCVOID,    // void 函数    value = 0
+  SYM_TYPE_FUNCINT,     // int 函数     value = 0
+  SYM_TYPE_CONSTARRAY,  // 常量数组     value = 数组维数
+  SYM_TYPE_ARRAY,       // 变量数组     value = 数组维数
+  SYM_TYPE_UND          // 符号不存在   value = -1
 };
 
 // 符号表中符号的值

@@ -138,7 +138,7 @@ void ConstDefAST::KoopaIR() const {
   }
   else {
     // 常量数组
-    insert_symbol(ident, SYM_TYPE_CONSTARRAY, 0);
+    insert_symbol(ident, SYM_TYPE_CONSTARRAY, const_index_list->size());
 
     // int arr[2][3] -> global @arr = alloc [[i32, 3], 2], {{1, 1, 4}, {5, 1, 4}}
     //                | @arr = alloc [[i32, 3], 2] \n 之后是store初始化
@@ -277,7 +277,7 @@ void VarDefAST::KoopaIR() const {
   }
   else {
     // 变量数组
-    insert_symbol(ident, SYM_TYPE_ARRAY, 0);
+    insert_symbol(ident, SYM_TYPE_ARRAY, const_index_list->size());
     // int arr[2][3] -> global @arr = alloc [[i32, 3], 2]
     //                | @arr = alloc [[i32, 3], 2]
     if (declaring_global_var)
