@@ -438,7 +438,7 @@ void FuncDefAST::KoopaIR() const {
     std::cout.seekp(-2, std::cout.end);
   std::cout << ")";
   if (func_type == "int") {
-    std::cout << ": i32 ";
+    std::cout << ": i32";
   }
 
   std::cout << " {" << std::endl;
@@ -467,18 +467,51 @@ void FuncDefAST::KoopaIR() const {
   exit_code_block();
 }
 
-// FuncFParam ::= TYPE IDENT;
+std::string FuncFParamAST::ParamType() const {
+  assert(type==2);
+  std::string str = "*";
+  for (int i = 0; i < const_index_list->size(); i++) {
+    str += "[";
+  }
+  str += "i32, ";
+  for (int i = const_index_list->size() - 1; i >= 0; i--) {
+    const auto& const_exp = (*const_index_list)[i];
+    int tmp = dynamic_cast<ExpBaseAST*>(const_exp.get())->Calc();
+    str += std::to_string(tmp) + "], ";
+  }
+  str.pop_back();
+  str.pop_back();
+  return str;
+}
+
+// FuncFParam ::= TYPE IDENT | TYPE IDENT "[" "]" ConstIndexList;
 void FuncFParamAST::KoopaIR() const {
-  std::cout << "@" << ident << ": i32";
+  if(type==1) {
+    std::cout << "@" << ident << ": i32";
+  }
+  else if(type==2) {
+    // 数组参数
+    std::cout << "@" << ident << ": " << ParamType();
+  }
 }
 
 void FuncFParamAST::Alloc() const {
-  // @SYM_TABLE_233_x = alloc i32
-  std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
-  insert_symbol(ident, SYM_TYPE_VAR, 0);
-  // store @x, @SYM_TABLE_233_x
-  std::cout << "  store @" << ident << ", @";
-  std::cout << query_symbol(ident).first << ident << std::endl;
+  if(type==1) {
+    // @SYM_TABLE_233_x = alloc i32
+    std::cout << "  @" << current_code_block() << ident << " = alloc i32" << std::endl;
+    insert_symbol(ident, SYM_TYPE_VAR, 0);
+    // store @x, @SYM_TABLE_233_x
+    std::cout << "  store @" << ident << ", @";
+    std::cout << query_symbol(ident).first << ident << std::endl;
+  }
+  else if(type==2) {
+    // 数组参数
+    insert_symbol(ident, SYM_TYPE_PTR, const_index_list->size()+1);
+    std::cout << "  @" << current_code_block() << ident << " = alloc " << ParamType() << std::endl;
+    // store @x, @SYM_TABLE_233_x
+    std::cout << "  store @" << ident << ", @";
+    std::cout << query_symbol(ident).first << ident << std::endl;
+  }
 }
 
 /**************************Block***************************/
@@ -505,15 +538,17 @@ void StmtAssignAST::KoopaIR() const {
   exp->KoopaIR();
   int exp_koopacnt = koopacnt-1;
   auto lvalptr = dynamic_cast<LValAST*>(lval.get());
+  auto symval = query_symbol(lvalptr->ident);
 
   // 存入刚刚计算出的值
-  if (lvalptr->index_list->size() == 0) {
+
+  if (symval.second->type == SYM_TYPE_VAR) {
     // LVal 为一个变量
     // store %1, @x
     std::cout << "  store %" << exp_koopacnt << ", @";
-    std::cout << query_symbol(lvalptr->ident).first << lvalptr->ident << std::endl;
+    std::cout << symval.first << lvalptr->ident << std::endl;
   }
-  else {
+  else if (symval.second->type == SYM_TYPE_ARRAY) {
     // LVal 为一个数组项
     // 依次 getelemptr
     for (int i = 0; i < lvalptr->index_list->size(); i++) {
@@ -524,7 +559,7 @@ void StmtAssignAST::KoopaIR() const {
 
       std::cout << "  %" << koopacnt << " = getelemptr ";
       if (i == 0)
-        std::cout << "@" << query_symbol(lvalptr->ident).first << lvalptr->ident;
+        std::cout << "@" << symval.first << lvalptr->ident;
       else
         std::cout << "%" << lastptr_koopacnt;
       std::cout << ", %" << exp_index_koopacnt << std::endl;
@@ -532,6 +567,26 @@ void StmtAssignAST::KoopaIR() const {
     }
     std::cout << "  store %" << exp_koopacnt << ", %" << koopacnt-1 << std::endl;
   }
+  else if (symval.second->type == SYM_TYPE_PTR) {
+    // ident 为一个指针
+    std::cout << "  %" << koopacnt << " = load @" << symval.first << lvalptr->ident << std::endl;
+    koopacnt++;
+    for (int i = 0; i<lvalptr->index_list->size(); i++) {
+      int lastptr_koopacnt = koopacnt-1;
+      const auto& exp_index = (*(lvalptr->index_list))[i];
+      dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+      int exp_index_koopacnt = koopacnt-1;
+      if(i==0)
+        std::cout << "  %" << koopacnt << " = getptr %";
+      else
+        std::cout << "  %" << koopacnt << " = getelemptr %";
+      std::cout << lastptr_koopacnt << ", %" << exp_index_koopacnt << std::endl;
+      koopacnt++;
+    }
+    std::cout << "  store %" << exp_koopacnt << ", %" << koopacnt-1 << std::endl;
+  }
+  else
+    assert(0);
 }
 
 //        | ";"
@@ -708,24 +763,97 @@ void LValAST::KoopaIR() const {
     koopacnt++;
   }
   else if(val.second->type == SYM_TYPE_CONSTARRAY || val.second->type == SYM_TYPE_ARRAY) {
-    assert(index_list->size() != 0);
-    // 数组项, 依次 getelemptr
-    for (int i = 0; i < index_list->size(); i++) {
-      int lastptr_koopacnt = koopacnt-1;
-      const auto& exp_index = (*index_list)[i];
-      dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
-      int exp_index_koopacnt = koopacnt-1;
+    // 数组
+    if (val.second->value == index_list->size()) {
+      // 数组项, 依次 getelemptr
+      for (int i = 0; i < index_list->size(); i++) {
+        int lastptr_koopacnt = koopacnt-1;
+        const auto& exp_index = (*index_list)[i];
+        dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+        int exp_index_koopacnt = koopacnt-1;
 
-      std::cout << "  %" << koopacnt << " = getelemptr ";
-      if (i == 0)
-        std::cout << "@" << query_symbol(ident).first << ident;
-      else
-        std::cout << "%" << lastptr_koopacnt;
-      std::cout << ", %" << exp_index_koopacnt << std::endl;
+        std::cout << "  %" << koopacnt << " = getelemptr ";
+        if (i == 0)
+          std::cout << "@" << val.first << ident;
+        else
+          std::cout << "%" << lastptr_koopacnt;
+        std::cout << ", %" << exp_index_koopacnt << std::endl;
+        koopacnt++;
+      }
+      std::cout << "  %" << koopacnt << " = load %" << koopacnt-1 << std::endl;
       koopacnt++;
     }
-    std::cout << "  %" << koopacnt << " = load %" << koopacnt-1 << std::endl;
-    koopacnt++;
+    else {
+      // 部分解引用，做一个指针丢给函数
+      for (int i = 0; i < index_list->size(); i++) {
+        int lastptr_koopacnt = koopacnt-1;
+        const auto& exp_index = (*index_list)[i];
+        dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+        int exp_index_koopacnt = koopacnt-1;
+
+        std::cout << "  %" << koopacnt << " = getelemptr ";
+        if (i == 0)
+          std::cout << "@" << val.first << ident;
+        else
+          std::cout << "%" << lastptr_koopacnt;
+        std::cout << ", %" << exp_index_koopacnt << std::endl;
+        koopacnt++;
+      }
+      int lastptr_koopacnt = koopacnt-1;
+      std::cout << "  %" << koopacnt << " = getelemptr ";
+      if (index_list->size() == 0)
+        std::cout << "@" << val.first << ident;
+      else
+        std::cout << "%" << lastptr_koopacnt;
+      std::cout << ", 0" << std::endl;
+      koopacnt++;
+    }
+  }
+  else if(val.second->type == SYM_TYPE_PTR) {
+    // 指针
+    if(val.second->value == index_list->size()) {
+      // 取出对应的项
+      std::cout << "  %" << koopacnt << " = load @" << val.first << ident << std::endl;
+      koopacnt++;
+      for (int i = 0; i < index_list->size(); i++) {
+        int lastptr_koopacnt = koopacnt-1;
+        const auto& exp_index = (*index_list)[i];
+        dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+        int exp_index_koopacnt = koopacnt-1;
+        if(i==0)
+          std::cout << "  %" << koopacnt << " = getptr %";
+        else
+          std::cout << "  %" << koopacnt << " = getelemptr %";
+        std::cout << lastptr_koopacnt << ", %" << exp_index_koopacnt << std::endl;
+        koopacnt++;
+      }
+      std::cout << "  %" << koopacnt << " = load %" << koopacnt-1 << std::endl;
+      koopacnt++;
+    }
+    else {
+      // 部分解引用，做一个指针丢给函数
+      std::cout << "  %" << koopacnt << " = load @" << val.first << ident << std::endl;
+      koopacnt++;
+      for (int i = 0; i < index_list->size(); i++) {
+        int lastptr_koopacnt = koopacnt-1;
+        const auto& exp_index = (*index_list)[i];
+        dynamic_cast<ExpBaseAST*>(exp_index.get())->KoopaIR();
+        int exp_index_koopacnt = koopacnt-1;
+        if(i==0)
+          std::cout << "  %" << koopacnt << " = getptr %";
+        else
+          std::cout << "  %" << koopacnt << " = getelemptr %";
+        std::cout << lastptr_koopacnt << ", %" << exp_index_koopacnt << std::endl;
+        koopacnt++;
+      }
+      int lastptr_koopacnt = koopacnt-1;
+      if(index_list->size() == 0)
+        std::cout << "  %" << koopacnt << " = getptr %";
+      else
+        std::cout << "  %" << koopacnt << " = getelemptr %";
+      std::cout << lastptr_koopacnt << ", 0" << std::endl;
+      koopacnt++;
+    }
   }
   return;
 }

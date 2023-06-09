@@ -132,11 +132,18 @@ class FuncDefAST : public BaseAST {
   void KoopaIR() const override;
 };
 
-// FuncFParam ::= TYPE IDENT;
+// FuncFParam ::= TYPE IDENT | TYPE IDENT "[" "]" ConstIndexList;
 class FuncFParamAST : public BaseAST {
+  // 该函数在 type==2 时可用, 返回该参数的类型. 例子:
+  // int arr[]        -> *i32
+  // int arr[][3]     -> *[i32, 3]
+  // int arr[][2][3]  -> *[[i32, 3], 2]
+  std::string ParamType() const;
  public:
+  int type;
   std::string b_type;
   std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > const_index_list;
   void KoopaIR() const override;
   void Alloc() const;
 };

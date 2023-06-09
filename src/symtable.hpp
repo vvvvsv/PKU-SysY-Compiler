@@ -11,6 +11,7 @@ enum symbol_type
   SYM_TYPE_FUNCINT,     // int 函数     value = 0
   SYM_TYPE_CONSTARRAY,  // 常量数组     value = 数组维数
   SYM_TYPE_ARRAY,       // 变量数组     value = 数组维数
+  SYM_TYPE_PTR,         // 指针         value = 指针指向的类型的维数+1
   SYM_TYPE_UND          // 符号不存在   value = -1
 };
 
