@@ -408,6 +408,11 @@ Stmt
     auto ast = new StmtContinueAST();
     $$ = ast;
   }
+  | RETURN ';' {
+    auto ast = new StmtReturnAST();
+    ast->type = 1;
+    $$ = ast;
+  }
   | RETURN Exp ';' {
     auto ast = new StmtReturnAST();
     ast->type = 2;
