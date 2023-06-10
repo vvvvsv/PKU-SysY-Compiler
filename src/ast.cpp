@@ -859,7 +859,6 @@ void LValAST::KoopaIR() const {
 }
 
 int LValAST::Calc() const {
-  std::cerr<<ident<<std::endl;
   auto val = query_symbol(ident);
   assert(val.second->type == SYM_TYPE_CONST);
   return val.second->value;
