@@ -34,11 +34,11 @@ class CompUnitItemAST : public BaseAST {
 
 /**************************Decl***************************/
 
-// Decl ::= ConstDecl | VarDecl;
+// Decl ::= ConstDecl | VarDecl | FuncDecl;
 class DeclAST : public BaseAST {
  public:
   int type;
-  std::unique_ptr<BaseAST> const_decl1_var_decl2;
+  std::unique_ptr<BaseAST> const_decl1_var_decl2_func_decl3;
   void KoopaIR() const override;
 };
 
@@ -117,6 +117,18 @@ class InitValAST : public BaseAST {
   std::vector<int> Aggregate(std::vector<int>::iterator len_begin,
     std::vector<int>::iterator len_end) const;
 };
+
+// FuncDecl ::= TYPE IDENT "(" FuncFParams ")" ";";
+// FuncFParams ::=  | FuncFParamList;
+// FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
+class FuncDeclAST : public BaseAST {
+ public:
+  std::string func_type;
+  std::string ident;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST> > > func_f_param_list;
+  void KoopaIR() const override;
+};
+
 
 /**************************Func***************************/
 

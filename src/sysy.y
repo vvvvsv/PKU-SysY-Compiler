@@ -41,7 +41,7 @@ using namespace std;
 
 // 非终结符的类型定义
 %type <ast_val> CompUnitItem
-%type <ast_val> Decl ConstDecl ConstDef ConstInitVal VarDecl VarDef InitVal
+%type <ast_val> Decl ConstDecl ConstDef ConstInitVal VarDecl VarDef InitVal FuncDecl
 %type <ast_val> FuncDef FuncFParam
 %type <ast_val> Block BlockItem Stmt
 %type <ast_val> Exp LVal PrimaryExp UnaryExp FuncExp MulExp AddExp
@@ -98,13 +98,19 @@ Decl
   : ConstDecl {
     auto ast = new DeclAST();
     ast->type = 1;
-    ast->const_decl1_var_decl2 = unique_ptr<BaseAST>($1);
+    ast->const_decl1_var_decl2_func_decl3 = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   | VarDecl {
     auto ast = new DeclAST();
     ast->type = 2;
-    ast->const_decl1_var_decl2 = unique_ptr<BaseAST>($1);
+    ast->const_decl1_var_decl2_func_decl3 = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  }
+  | FuncDecl {
+    auto ast = new DeclAST();
+    ast->type = 3;
+    ast->const_decl1_var_decl2_func_decl3 = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   ;
@@ -266,6 +272,16 @@ InitValList
     auto vec = $1;
     vec->push_back(unique_ptr<BaseAST>($3));
     $$ = vec;
+  }
+  ;
+
+FuncDecl
+  : TYPE IDENT '(' FuncFParams ')' ';' {
+    auto ast = new FuncDeclAST();
+    ast->func_type = *unique_ptr<string>($1);
+    ast->ident = *unique_ptr<string>($2);
+    ast->func_f_param_list = unique_ptr<vector<unique_ptr<BaseAST> > >($4);
+    $$ = ast;
   }
   ;
 

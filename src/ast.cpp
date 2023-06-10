@@ -18,6 +18,8 @@ static std::unordered_map<int, int> whilepar;
 static int entry_end = 0;
 // 当前是否在声明全局变量
 static int declaring_global_var = 0;
+// 当前是否在声明函数
+static int declaring_func = 0;
 
 /************************CompUnit*************************/
 
@@ -64,9 +66,9 @@ void CompUnitItemAST::KoopaIR() const {
 
 /**************************Decl***************************/
 
-// Decl ::= ConstDecl | VarDecl;
+// Decl ::= ConstDecl | VarDecl | FuncDecl;
 void DeclAST::KoopaIR() const {
-  const_decl1_var_decl2->KoopaIR();
+  const_decl1_var_decl2_func_decl3->KoopaIR();
 }
 
 // ConstDecl ::= "const" TYPE ConstDefList ";";
@@ -412,6 +414,36 @@ std::vector<int> InitValAST::Aggregate(std::vector<int>::iterator mul_len_begin,
   }
 }
 
+// FuncDecl ::= TYPE IDENT "(" FuncFParams ")" ";";
+// FuncFParams ::=  | FuncFParamList;
+// FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
+void FuncDeclAST::KoopaIR() const {
+  if (!exist_symbol(ident)) {
+    if (func_type == "void") {
+      insert_symbol(ident, SYM_TYPE_FUNCVOID, 0);
+    }
+    else if (func_type == "int") {
+      insert_symbol(ident, SYM_TYPE_FUNCINT, 0);
+    }
+  }
+  declaring_func = 1;
+  // decl @func(@x: i32): i32 {}
+  std::cout << "decl @" << ident << "(";
+  for(auto& func_f_param: *func_f_param_list) {
+    func_f_param->KoopaIR();
+    std::cout << ", ";
+  }
+  // 退格擦除最后一个逗号
+  if(!func_f_param_list->empty())
+    std::cout.seekp(-2, std::cout.end);
+  std::cout << ")";
+  if (func_type == "int") {
+    std::cout << ": i32";
+  }
+  std::cout << std::endl;
+  declaring_func = 0;
+}
+
 /**************************Func***************************/
 
 // FuncDef ::= TYPE IDENT "(" FuncFParams ")" Block;
@@ -419,11 +451,13 @@ std::vector<int> InitValAST::Aggregate(std::vector<int>::iterator mul_len_begin,
 // FuncFParamList ::= FuncFParam | FuncFParamList "," FuncFParam;
 void FuncDefAST::KoopaIR() const {
   // 插入符号
-  if (func_type == "void") {
-    insert_symbol(ident, SYM_TYPE_FUNCVOID, 0);
-  }
-  else if (func_type == "int") {
-    insert_symbol(ident, SYM_TYPE_FUNCINT, 0);
+  if (!exist_symbol(ident)) {
+    if (func_type == "void") {
+      insert_symbol(ident, SYM_TYPE_FUNCVOID, 0);
+    }
+    else if (func_type == "int") {
+      insert_symbol(ident, SYM_TYPE_FUNCINT, 0);
+    }
   }
   enter_code_block();
 
@@ -487,11 +521,15 @@ std::string FuncFParamAST::ParamType() const {
 // FuncFParam ::= TYPE IDENT | TYPE IDENT "[" "]" ConstIndexList;
 void FuncFParamAST::KoopaIR() const {
   if(type==1) {
-    std::cout << "@" << ident << ": i32";
+    if (!declaring_func)
+      std::cout << "@" << ident << ": ";
+    std::cout << "i32";
   }
   else if(type==2) {
     // 数组参数
-    std::cout << "@" << ident << ": " << ParamType();
+    if (!declaring_func)
+      std::cout << "@" << ident << ": ";
+    std::cout << ParamType();
   }
 }
 
