@@ -67,7 +67,7 @@ void Visit(const koopa_raw_function_t &func) {
   // 执行一些其他的必要操作
   std::cout << "  .text" << std::endl;
   std::cout << "  .globl " << func->name+1 << std::endl;
-  std::cout << func->name+1 << ":" <<std::endl;
+  std::cout << func->name+1 << ":" << std::endl;
 
   // 清空
   stack_frame_length = 0;
@@ -153,7 +153,6 @@ void Visit(const koopa_raw_basic_block_t &bb) {
 void Visit(const koopa_raw_value_t &value) {
   // 根据指令类型判断后续需要如何访问
   const auto &kind = value->kind;
-  std::cout<<std::endl;
   switch (kind.tag) {
     case KOOPA_RVT_INTEGER:
       // 访问 integer 指令
@@ -242,12 +241,6 @@ static void loadaddr2reg(const koopa_raw_value_t &value, const std::string &reg)
   else if(value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
     std::cout << "  la " << reg << ", " << value->name+1 << std::endl;
   }
-  // else if(value->kind.tag == KOOPA_RVT_GET_PTR ||
-  //   value->kind.tag == KOOPA_RVT_GET_ELEM_PTR) {
-  //   load2reg(loc[value], reg);
-  //   std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
-  //   std::cout << "  lw " << reg << ", 0(" << reg << ")" << std::endl;
-  // }
   else {
     load2reg(loc[value], reg);
     std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
@@ -446,7 +439,9 @@ void Visit(const koopa_raw_get_ptr_t &get_ptr, const koopa_raw_value_t &value) {
   // 若有返回值则将 t0 中的结果存入栈
   if(value->ty->tag != KOOPA_RTT_UNIT) {
     // 保存 dimlr
-    dimlr[value] = begin_end;
+    auto first = begin_end.first;
+    ++first;
+    dimlr[value] = std::make_pair(first, begin_end.second);
     // 存入栈
     loc[value] = stack_frame_used;
     stack_frame_used += 4;
