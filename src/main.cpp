@@ -47,7 +47,7 @@ int main(int argc, const char *argv[]) {
     cout.rdbuf(outputfile.rdbuf());
     cout << ss.str();
   }
-  else if(string(mode)=="-riscv")
+  else if(string(mode)=="-riscv" || string(mode)=="-perf")
   {
     char* buf = new char[ss.str().length()+1];
     strcpy(buf, ss.str().c_str());
@@ -70,7 +70,6 @@ int main(int argc, const char *argv[]) {
 
     // 处理完成, 释放 raw program builder 占用的内存
     koopa_delete_raw_program_builder(builder);
-
   }
 
   cout.rdbuf(oldcoutbuf);
