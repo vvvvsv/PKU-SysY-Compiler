@@ -23,11 +23,20 @@ void Visit(const koopa_raw_integer_t &integer);
 // 访问 global alloc 指令
 void Visit(const koopa_raw_global_alloc_t &global_alloc, const koopa_raw_value_t &value);
 
+// 访问没有 data 的 mode 指令
+void Visit(const std::string &mode, const koopa_raw_value_t &value);
+
 // 访问 load 指令
 void Visit(const koopa_raw_load_t &load, const koopa_raw_value_t &value);
 
 // 访问 store 指令
 void Visit(const koopa_raw_store_t &store);
+
+// 访问 getptr 指令
+void Visit(const koopa_raw_get_ptr_t &get_ptr, const koopa_raw_value_t &value);
+
+// 访问 getelemptr 指令
+void Visit(const koopa_raw_get_elem_ptr_t &get_elem_ptr, const koopa_raw_value_t &value);
 
 // 访问 binary 指令
 void Visit(const koopa_raw_binary_t &binary, const koopa_raw_value_t &value);
