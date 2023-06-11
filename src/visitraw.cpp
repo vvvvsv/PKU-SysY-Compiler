@@ -225,6 +225,11 @@ static int value_is_ptr(const koopa_raw_value_t &value) {
   return 0;
 }
 
+// value 是 imm12, 属于 [-2048, 2047]
+static int value_is_imm12(int value) {
+  return (value >= -2048) && (value < 2048);
+}
+
 // 将 value 的值放置在标号为 reg 的寄存器中
 static void load2reg(int value, const std::string &reg) {
   std::cout << "  li " << reg << ", " << value << std::endl;
@@ -235,15 +240,27 @@ static void loadaddr2reg(const koopa_raw_value_t &value, const std::string &reg)
   if(value->kind.tag == KOOPA_RVT_FUNC_ARG_REF) {
     const auto& index = value->kind.data.func_arg_ref.index;
     assert(index >= 8);
-    load2reg(stack_frame_length + (index - 8) * 4, reg);
-    std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
+    int imm = stack_frame_length + (index - 8) * 4;
+    if (value_is_imm12(imm)) {
+      std::cout << "  addi " << reg << ", sp, " << imm << std::endl;
+    }
+    else {
+      load2reg(imm, reg);
+      std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
+    }
   }
   else if(value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
     std::cout << "  la " << reg << ", " << value->name+1 << std::endl;
   }
   else {
-    load2reg(loc[value], reg);
-    std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
+    int imm = loc[value];
+    if (value_is_imm12(imm)) {
+      std::cout << "  addi " << reg << ", sp, " << imm << std::endl;
+    }
+    else {
+      load2reg(imm, reg);
+      std::cout << "  add " << reg << ", " << reg << ", sp" << std::endl;
+    }
   }
 }
 
